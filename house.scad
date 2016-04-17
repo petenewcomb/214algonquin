@@ -385,8 +385,9 @@ module floor_plans() {
     }
 }
 
-//house();
+house();
 //floor_plans();
+/*
 difference() {
     envelope();
     position_garage_children()
@@ -397,3 +398,4 @@ difference() {
         make_room( bedroom_length, bedroom_width, mainhouse_width - exterior_wall_thickness - bedroom_length, exterior_wall_thickness, mainhouse_roof_spec, extra_height = 1 * in);
     }
 }
+*/

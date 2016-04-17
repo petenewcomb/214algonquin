@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+	<Document>
+		<name>214 Algonquin Drive</name>
+		<Style id='propertyLines'>
+			<LineStyle>
+				<color>ff3644DB</color>
+				<width>10</width>
+			</LineStyle>
+		</Style>
+		<Placemark>
+			<styleUrl>#propertyLines</styleUrl>
+			<name>Property Lines</name>
+			<MultiGeometry>
+				<LineString>
+					<tessellate>1</tessellate>
+					<altitudeMode>clampToGround</altitudeMode>
+					<coordinates>
+						-74.00160400000,44.28987400000,0
+						-74.00094151203,44.29041612078,0
+					</coordinates>
+				</LineString>
+				<LinearRing>
+					<tessellate>1</tessellate>
+					<altitudeMode>clampToGround</altitudeMode>
+					<coordinates>
+						-74.00094151203,44.29041612078,0
+						-74.00057517228,44.29000843560,0
+						-74.00128756723,44.28960486257,0
+					</coordinates>
+				</LinearRing>
+				<LinearRing>
+					<tessellate>1</tessellate>
+					<altitudeMode>clampToGround</altitudeMode>
+					<coordinates>
+					</coordinates>
+				</LinearRing>
+			</MultiGeometry>
+		</Placemark>
+	</Document>
+</kml>
