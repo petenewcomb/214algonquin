@@ -1,3 +1,5 @@
+include <units.scad>;
+
 /*
   Note page 19 of:
   http://energy.gov/sites/prod/files/2015/02/f19/ba_webinar_2-12-15_lstiburek.pdf
@@ -15,8 +17,8 @@ function shed_roof_spec(
         vertical_thickness)
     = [ sloped_span,
         flat_span,
-        min_height,
-        max_height,
+        min_roof_height,
+        max_roof_height,
         vertical_thickness];
 
 function shed_roof_sloped_span( spec) = spec[ 0];
@@ -25,8 +27,26 @@ function shed_roof_min_roof_height( spec) = spec[ 2];
 function shed_roof_max_roof_height( spec) = spec[ 3];
 function shed_roof_vertical_thickness( spec) = spec[ 4];
 
-/*
+/* Create spec using slope and thickness instead of min_roof_height and vertical_thickness*/
+function shed_roof_vertical_thickness_from_slope( thickness, slope)
+    = thickness * sqrt( slope * slope + 1);
 
+function shed_roof_spec_from_slope(
+        sloped_span,
+        flat_span,
+        slope,
+        max_roof_height,
+        thickness)
+    = shed_roof_spec(
+            sloped_span = sloped_span,
+            flat_span = flat_span,
+            min_roof_height = max_roof_height - slope * sloped_span,
+            max_roof_height = max_roof_height,
+            vertical_thickness = shed_roof_vertical_thickness_from_slope(
+                    thickness = thickness,
+                    slope = slope));
+
+/*
   Calculate roof slope given span, min_ceiling_height, max_roof_height, thickness, and ceiling_start_offset:
 
         slope = ( max_roof_height - min_roof_height) / span
@@ -76,10 +96,6 @@ function shed_roof_slope_from_constraints(
            x = ( -b + sqrt( b * b - 4 * a * c)) / ( 2 * a))
         granularity > 0 ? floor( x * granularity) / granularity : x;
 
-function shed_roof_vertical_thickness_from_slope( thickness, slope)
-    = let( slope = roof_slope( roof_spec))
-        roof_thickness * sqrt( slope * slope + 1);
-
 function shed_roof_spec_from_constraints(
         sloped_span,
         flat_span,
@@ -94,14 +110,14 @@ function shed_roof_spec_from_constraints(
                        max_roof_height = max_roof_height,
                        thickness = thickness,
                        granularity = granularity))
-    = shed_roof_spec(
-          sloped_span = sloped_span,
-          flat_span = flat_span,
-          min_height = max_roof_height - slope * sloped_span;
-          max_height = max_roof_height,
-          vertical_thickness = shed_roof_vertical_thickness_from_slope(
-                                   thickness = thickness,
-                                   slope = slope));
+        shed_roof_spec(
+                sloped_span = sloped_span,
+                flat_span = flat_span,
+                min_roof_height = max_roof_height - slope * sloped_span,
+                max_roof_height = max_roof_height,
+                vertical_thickness = shed_roof_vertical_thickness_from_slope(
+                        thickness = thickness,
+                        slope = slope));
 
 module echo_shed_roof_slope( name, spec, denominator = $default_slope_denominator) {
     echo( str( name, " roof slope: ", shed_roof_slope( spec) * denominator, " / ", denominator));
@@ -110,15 +126,35 @@ module echo_shed_roof_slope( name, spec, denominator = $default_slope_denominato
 module shed_roof( spec) {
     sloped_span = shed_roof_sloped_span( spec);
     flat_span = shed_roof_flat_span( spec);
-    height_min = shed_roof_height_min( spec);
-    height_max = shed_roof_height_max( spec);
+    min_roof_height = shed_roof_min_roof_height( spec);
+    max_roof_height = shed_roof_max_roof_height( spec);
     vertical_thickness = shed_roof_vertical_thickness( spec);
     rotate( [ 90, 0, 0]) {
-        linear_extrude( flat_span) {
-            polygon( [ [ 0, height_min],
-                       [ sloped_span, height_max],
-                       [ sloped_span, height_max - vertical_thickness],
-                       [ 0, height_min - vertical_thickness]]);
+        translate( [ 0, 0, -flat_span]) {
+            linear_extrude( flat_span) {
+                polygon( [ [ 0, min_roof_height],
+                           [ sloped_span, max_roof_height],
+                           [ sloped_span, max_roof_height - vertical_thickness],
+                           [ 0, min_roof_height - vertical_thickness]]);
+            }
+        }
+    }
+}
+
+module shed_roof_cutout( spec, extra_height = 1 * in) {
+    sloped_span = shed_roof_sloped_span( spec);
+    flat_span = shed_roof_flat_span( spec);
+    min_roof_height = shed_roof_min_roof_height( spec);
+    max_roof_height = shed_roof_max_roof_height( spec);
+    vertical_thickness = shed_roof_vertical_thickness( spec);
+    rotate( [ 90, 0, 0]) {
+        translate( [ 0, 0, -flat_span]) {
+            linear_extrude( flat_span) {
+                polygon( [ [ 0, max_roof_height + extra_height],
+                           [ sloped_span, max_roof_height + extra_height],
+                           [ sloped_span, max_roof_height - vertical_thickness],
+                           [ 0, min_roof_height - vertical_thickness]]);
+            }
         }
     }
 }

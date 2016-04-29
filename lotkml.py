@@ -35,7 +35,7 @@ def azimuth(ns,d,m,s,ew):
     elif ew != 'E':
         raise ValueError, ew
 #    a = a - 14.35 # magnetic declination in June 2009
-    a = a - 13.00 # apparent magnetic declination
+    a = a - 14.00 # apparent magnetic declination
     while a < -180:
         a += 360
     while a > 180:
@@ -43,7 +43,7 @@ def azimuth(ns,d,m,s,ew):
     return a
 
 #lon,lat = -73.94098416362,44.23961018733
-lon,lat = -74.001604,44.289874
+lon,lat = -74.001586,44.289891
 alt=ftToM(1961)
 r=alt+earthRadiusAtLatitude(lat)
 

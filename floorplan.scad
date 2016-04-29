@@ -8,39 +8,6 @@ default_font = "Comic Sans MS:style=Regular";
 exterior_wall_thickness = 5.5 * in + 1.5 * in + 0.5 * in;
 interior_wall_thickness = 3.5 * in + 0.5 * in + 0.5 * in;
 
-/* View guidelines */
-
-view_x = ( 40 + 15 + 35 + 25) * ft;
-module position_view() {
-    children();
-}
-module view() {
-    thickness = interior_wall_thickness;
-    gap = 2 * exterior_wall_thickness;
-    corner_y = 2 * ft;
-    position_view() {
-        union() {
-            translate( [ -thickness - gap, gap + thickness - corner_y]) {
-                square( [ thickness, 2 * ft]);
-            }
-            translate( [ -gap - 1 * in, gap]) {
-                square( [ gap + 1 * in + 40 * ft, thickness]);
-            }
-        }
-        translate( [ 40 * ft + 15 * ft, gap]) {
-            square( [ 35 * ft, thickness]);
-        }
-        union() {
-            translate( [ view_x, gap]) {
-                square( [ gap + 1 * in, thickness]);
-            }
-            translate( [ view_x + gap, gap + thickness - corner_y]) {
-                square( [ thickness, 2 * ft]);
-            }
-        }
-    }
-}
-
 /* Dining area */
 
 diningarea_x = 12 * ft;
@@ -261,35 +228,188 @@ module pantry() {
     }
 }
 
+/* Northwest Garage */
+
+northwest_garage_x = 24 * ft;
+northwest_garage_y = 24 * ft;
+module position_northwest_garage() {
+    position_building() {
+        translate( [ exterior_wall_thickness, exterior_wall_thickness]) {
+            children();
+        }
+    }
+}
+module northwest_garage() {
+    position_northwest_garage() {
+        square( [ northwest_garage_x, northwest_garage_y]);
+    }
+}
+
+/* Workshop */
+
+workshop_x = 12 * ft;
+workshop_y = 20 * ft;
+module position_workshop() {
+    position_northwest_garage() {
+        translate( [ 0, northwest_garage_y + exterior_wall_thickness]) {
+            children();
+        }
+    }
+}
+module workshop() {
+    position_workshop() {
+        square( [ workshop_x, workshop_y]);
+    }
+}
+
+
+/* Northwest_connector */
+
+northwest_connector_x = 8 * ft;
+northwest_connector_y = northwest_garage_y + exterior_wall_thickness + 3 * ft;
+northwest_connector_west_corner = [ 0, 0];
+northwest_connector_north_corner = [ 0, northwest_connector_y];
+northwest_connector_east_corner = [ northwest_connector_x, northwest_connector_y];
+northwest_connector_south_corner = [ northwest_connector_x, 0];
+module position_northwest_connector() {
+    position_northwest_garage() {
+        translate( [ northwest_garage_x + exterior_wall_thickness, 0]) {
+            children();
+        }
+    }
+}
+module northwest_connector() {
+    position_northwest_connector() {
+        polygon( [ northwest_connector_west_corner,
+                   northwest_connector_north_corner,
+                   northwest_connector_east_corner,
+                   northwest_connector_south_corner]);
+    }
+}
+
 /* Mudroom */
 
-mudroom_x = 4 * ft + pantry_x + interior_wall_thickness + kitchen_backwall_x;
+northwest_garage_angle = northwest_boundary_angle - ( southwest_boundary_angle + 90);
+
+mudroom_x = 20 * ft;
+//mudroom_y = northwest_garage_y * cos( northwest_garage_angle);
 mudroom_y = 8 * ft;
+mudroom_west_corner = [ 0, 0];
+mudroom_north_corner = [ -mudroom_y * sin( northwest_garage_angle), mudroom_y];
+mudroom_east_corner = [ mudroom_x + mudroom_y * sin( northwest_garage_angle), mudroom_y];
+mudroom_south_corner = [ mudroom_x, 0];
 module position_mudroom() {
-    position_greatroom() {
-        translate( [ greatroom_x - mudroom_x, -mudroom_y - interior_wall_thickness]) {
-            children();
+    position_northwest_connector() {
+        translate( [ northwest_connector_x + interior_wall_thickness, 0]) {
+            rotate( [ 0, 0, -northwest_garage_angle]) {
+                children();
+            }
         }
     }
 }
 module mudroom() {
     position_mudroom() {
-        square( [ mudroom_x, mudroom_y]);
+        polygon( [ mudroom_west_corner,
+                   mudroom_north_corner,
+                   mudroom_east_corner,
+                   mudroom_south_corner]);
+    }
+}
+
+/* Southeast_connector */
+
+southeast_connector_x = northwest_connector_x;
+southeast_connector_y = northwest_connector_y;
+southeast_connector_west_corner = [ 0, 0];
+southeast_connector_north_corner = [ 0, southeast_connector_y];
+southeast_connector_east_corner = [ southeast_connector_x, southeast_connector_y];
+southeast_connector_south_corner = [ southeast_connector_x, 0];
+module position_southeast_connector() {
+    position_mudroom() {
+        translate( [ mudroom_x, 0]) {
+            rotate( [ 0, 0, -northwest_garage_angle]) {
+                translate( [ interior_wall_thickness, 0]) {
+                    children();
+                }
+            }
+        }
+    }
+}
+module southeast_connector() {
+    position_southeast_connector() {
+        polygon( [ southeast_connector_west_corner,
+                   southeast_connector_north_corner,
+                   southeast_connector_east_corner,
+                   southeast_connector_south_corner]);
+    }
+}
+
+/* Southeast Garage */
+
+southeast_garage_x = 24 * ft;
+southeast_garage_y = 24 * ft;
+module position_southeast_garage() {
+    position_southeast_connector() {
+        translate( [ southeast_connector_x + exterior_wall_thickness, 0]) {
+            children();
+        }
+    }
+}
+module southeast_garage() {
+    position_southeast_garage() {
+        square( [ southeast_garage_x, southeast_garage_y]);
+    }
+}
+
+/* Stairs */
+
+// TODO: figure out stairs to loft, too, including landing (turn?)
+stairs_x = 16 * ft; // TODO: calculate from pitch and basement depth
+stairs_y = 3 * ft;
+module position_stairs() {
+    position_greatroom() {
+        translate( [ ( greatroom_x - stairs_x) / 2, 0]) {
+            children();
+        }
+    }
+}
+module stairs() {
+    position_stairs() {
+        #square( [ stairs_x + 1 * in, stairs_y]);
     }
 }
 
 /* Greatroom */
 
-greatroom_x = 25 * ft;
-greatroom_y = diningarea_y + interior_wall_thickness + kitchen_y;
+greatroom_x = mudroom_x + 2 * ( mudroom_y + interior_wall_thickness) * sin( northwest_garage_angle);
+greatroom_y = stairs_y + diningarea_y + interior_wall_thickness + kitchen_y;
+
+echo( str( "garage angle: ", northwest_garage_angle));
+
+greatroom_west_corner = [ 0, 0];
+greatroom_north_corner = [ -greatroom_y * sin( northwest_garage_angle), greatroom_y];
+greatroom_northeast_corner = [ greatroom_x / 2, greatroom_y + 6 * ft];
+greatroom_east_corner = [ greatroom_x + greatroom_y * sin( northwest_garage_angle), greatroom_y];
+greatroom_south_corner = [ greatroom_x, 0];
+
 module position_greatroom() {
-    position_view() {
-        translate( [ view_x - greatroom_x, -greatroom_y]) {
-            children();
+    position_mudroom() {
+        translate( vector_from_polar( 90 + northwest_garage_angle, interior_wall_thickness)) {
+            translate( mudroom_north_corner) {
+                children();
+            }
         }
     }
 }
 module greatroom() {
+        position_greatroom() {
+            polygon( [ greatroom_west_corner,
+                       greatroom_north_corner,
+                       greatroom_northeast_corner,
+                       greatroom_east_corner,
+                       greatroom_south_corner]);
+        }
+/*
     difference() {
         position_greatroom() {
             square( [ greatroom_x, greatroom_y]);
@@ -305,28 +425,12 @@ module greatroom() {
             }
         }
     }
-}
-
-/* Garage 1 */
-
-garage1_x = greatroom_x;
-garage1_y = 24 * ft;
-module position_garage1() {
-    position_mudroom() {
-        translate( [ mudroom_x - garage1_x, -exterior_wall_thickness - garage1_y]) {
-            children();
-        }
-    }
-}
-module garage1() {
-    position_garage1() {
-        square( [ garage1_x, garage1_y]);
-    }
+*/
 }
 
 /* Laundry room */
 
-laundryroom_x = garage1_x - mudroom_x - interior_wall_thickness;
+laundryroom_x = northwest_garage_x - mudroom_x - interior_wall_thickness;
 laundryroom_y = mudroom_y;
 module position_laundryroom() {
     position_mudroom() {
@@ -341,24 +445,6 @@ module laundryroom() {
     }
 }
 
-
-/* Stairs */
-
-// TODO: figure out stairs to loft, too, including landing (turn?)
-stairs_x = 16 * ft; // TODO: calculate from pitch and basement depth
-stairs_y = 3 * ft;
-module position_stairs() {
-    position_entrance() {
-        translate( [ -stairs_x, 0]) {
-            children();
-        }
-    }
-}
-module stairs() {
-    position_stairs() {
-        square( [ stairs_x + 1 * in, stairs_y]);
-    }
-}
 
 /* Entrance */
 
@@ -475,14 +561,20 @@ module master_closet() {
 
 module rooms() {
     greatroom();
-    pantry();
-    laundryroom();
+//    pantry();
+//    laundryroom();
     mudroom();
-    garage1();
+    northwest_garage();
+    northwest_connector();
+    workshop();
 
-    hallway();
+    southeast_garage();
+    southeast_connector();
+
+
+//    hallway();
     stairs();
-    entrance();
+//    entrance();
 
 //    second_bedroom();
 //    second_bathroom();
@@ -498,11 +590,11 @@ echo( str( "gross sqft =", (
  + hallway_x * ( entrance_y + hallway_y + second_bedroom_y)
  )));
 
-module fixtures() {
-    kitchen_fixtures();
+module upperfloor_fixtures() {
+//    kitchen_fixtures();
 }
 
-module walls() {
+module upperfloor_walls_2d() {
     difference() {
         internal_offset_thickness = max( interior_wall_thickness, exterior_wall_thickness) + 1;
         offset( delta = exterior_wall_thickness - internal_offset_thickness) {
@@ -515,17 +607,17 @@ module walls() {
 }
 
 /* Lot boundaries */
-module position_lot() {
-    translate( [ view_x + 20 * ft, -southeast_boundary_length / 2 + 20 * ft]) {
-        rotate( [ 0, 0, 90 - southeast_boundary_angle]) {
-            translate( vector_difference( west_corner, south_corner)) {
+module position_lot_lines() {
+//    translate( [ view_x + 20 * ft, -southeast_boundary_length / 2 + 20 * ft]) {
+//        rotate( [ 0, 0, -southwest_boundary_angle]) {
+//            translate( vector_difference( west_corner, south_corner)) {
                 children();
-            }
-        }
-    }
+//            }
+//        }
+//    }
 }
-module lot() {
-    position_lot() {
+module lot_lines() {
+    position_lot_lines() {
         %difference() {
             offset( delta = interior_wall_thickness) lot_2d();
             lot_2d();
@@ -537,9 +629,19 @@ module lot() {
     }
 }
 
+module position_building() {
+    position_lot_lines() {
+        translate( building_area_west_corner) {
+            rotate( [ 0, 0, northwest_boundary_angle - 90]) {
+                children();
+            }
+        }
+    }
+}
+
 /* Big rock next to driveway */
 module position_rock() {
-    position_lot() {
+    position_lot_lines() {
         rotate( [ 0, 0, southwest_boundary_angle]) {
             translate( [ 35 * ft, 65 * ft]) {
                 children();
@@ -555,7 +657,7 @@ module rock() {
 
 /* Big tree next to driveway */
 module position_bigtree() {
-    position_lot() {
+    position_lot_lines() {
         rotate( [ 0, 0, southwest_boundary_angle]) {
             translate( [ 65 * ft, 45 * ft]) {
                 children();
@@ -571,7 +673,7 @@ module bigtree() {
 
 /* Electrical meter */
 module position_meter() {
-    position_lot() {
+    position_lot_lines() {
         rotate( [ 0, 0, southwest_boundary_angle]) {
             translate( [ southwest_boundary_length - 30 * ft, 31 * ft]) {
                 children();
@@ -591,7 +693,7 @@ module meter() {
 drivewaycircle_outer_diameter = 70 * ft;
 drivewaycircle_inner_diameter = 30 * ft;
 module position_drivewaycircle() {
-    position_lot() {
+    position_lot_lines() {
         rotate( [ 0, 0, northwest_boundary_angle - 90]) {
             translate( [ drivewaycircle_outer_diameter / 2 + 5 * ft, 65 * ft]) {
                 children();
@@ -665,7 +767,7 @@ module driveway_entrance( angle) {
 /* West driveway entrance */
 /*
 module position_driveway_entrance_west() {
-    position_lot() {
+    position_lot_lines() {
         rotate( [ 0, 0, southwest_boundary_angle]) {
             translate( [ driveway_setback, 0]) {
                 children();
@@ -720,24 +822,17 @@ module driveway() {
             }
 */
 
-lot();
-rock();
-bigtree();
-meter();
-//drivewaycircle();
-driveway();
-
 /*
 module driveway() {
     driveway_width = 12 * ft;
     driveway_corner_radius = 5 * ft;
-    garage_pad_depth = 20 * ft;
-    position_garage1() {
+    northwest_garage_pad_depth = 20 * ft;
+    position_northwest_garage() {
         translate( [ -exterior_wall_thickness, 0]) {
             difference() {
                 hull() {
-                    square( [ 1 * in, garage1_y]);
-                    translate( [ -20 * ft, garage1_y - driveway_corner_radius]) {
+                    square( [ 1 * in, northwest_garage_y]);
+                    translate( [ -20 * ft, northwest_garage_y - driveway_corner_radius]) {
                         circle( r = driveway_corner_radius);
                     }
                     translate( [ -15 * ft - driveway_width * 2, -driveway_width]) {
@@ -755,6 +850,21 @@ module driveway() {
 %driveway();
 */
 
-%view();
-walls();
-fixtures();
+module floorplan() {
+
+    lot_lines();
+    rock();
+    bigtree();
+    meter();
+    //drivewaycircle();
+    //driveway();
+
+    upperfloor_walls_2d();
+    upperfloor_fixtures();
+}
+
+rotate( [ 0, 0, -southwest_boundary_angle]) {
+    translate( vector_difference( [0, 0], building_area_west_corner)) {
+        floorplan();
+    }
+}
