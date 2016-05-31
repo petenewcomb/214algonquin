@@ -35,7 +35,8 @@ def azimuth(ns,d,m,s,ew):
     elif ew != 'E':
         raise ValueError, ew
 #    a = a - 14.35 # magnetic declination in June 2009
-    a = a - 14.00 # apparent magnetic declination
+    a = a - 14.22 # 1980-01-01
+    a = a - 14.22 # 1980-01-01
     while a < -180:
         a += 360
     while a > 180:

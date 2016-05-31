@@ -34,7 +34,7 @@ boundary_polar_path = [
 
 boundary_vector_path = concat( [ [ 0, 0]], [
         for ( p = boundary_polar_path)
-            vector_from_polar( p[ 0], p[ 1])
+            polar_to_vector( p[ 0], p[ 1])
 ]);
 
 northwest_boundary_angle = boundary_polar_path[ 0][ 0];
@@ -56,6 +56,71 @@ south_corner = boundary_corners[ 3];
 southwest_boundary_length = vector_length( vector_difference( south_corner, west_corner));
 southwest_boundary_angle = let( v = vector_difference( south_corner, west_corner)) atan( v[ 1] / v[ 0]);
 
+module position_lot() {
+    children();
+}
+
 module lot_2d() {
-    polygon( boundary_corners);
+    position_lot() {
+        polygon( boundary_corners);
+    }
+}
+
+module lot_lines() {
+    position_lot() {
+        %difference() {
+            offset( delta = interior_wall_thickness) lot_2d();
+            lot_2d();
+        }
+    }
+}
+
+/* Big rock next to driveway */
+module position_rock() {
+    position_lot() {
+        rotate( [ 0, 0, -northwest_boundary_angle]) {
+            translate( [ 48 * ft, 50 * ft]) {
+                children();
+            }
+        }
+    }
+}
+module rock() {
+    position_rock() {
+        %circle( r = 5 * ft);
+    }
+}
+
+/* Big tree next to driveway */
+module position_bigtree() {
+    position_lot() {
+        rotate( [ 0, 0, -northwest_boundary_angle]) {
+            translate( [ 69 * ft, 40 * ft]) {
+                children();
+            }
+        }
+    }
+}
+module bigtree() {
+    position_bigtree() {
+        %circle( r = 5 * ft);
+    }
+}
+
+/* Electrical meter */
+module position_meter() {
+    position_lot() {
+        rotate( [ 0, 0, southwest_boundary_angle]) {
+            translate( [ southwest_boundary_length - 30 * ft, 31 * ft]) {
+                children();
+            }
+        }
+    }
+}
+module meter() {
+    position_meter() {
+        rotate( [ 0, 0, 45]) {
+            %square( [ 5 * ft, 1 * ft]);
+        }
+    }
 }

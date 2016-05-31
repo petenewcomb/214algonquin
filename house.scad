@@ -235,7 +235,7 @@ northwest_garage_roof_y = northwest_garage_roof_overhang * 2 + exterior_wall_thi
 northwest_garage_roof_spec = shed_roof_spec_from_slope(
         sloped_span = northwest_garage_roof_x,
         flat_span = northwest_garage_roof_y,
-        slope = 2.0 / 12,
+        slope = 3.0 / 12,
         max_roof_height = roof_height_max,
         thickness = roof_thickness);
 echo( northwest_garage_roof_spec);
@@ -251,6 +251,7 @@ module position_northwest_garage_roof() {
 module northwest_garage_roof() {
     position_northwest_garage_roof() {
         shed_roof( northwest_garage_roof_spec);
+        echo_shed_roof_spec( "northwest garage", northwest_garage_roof_spec);
     }
 }
 
@@ -267,7 +268,7 @@ northwest_connector_roof_height_reduction = 4 * ft;
 northwest_connector_roof_spec = shed_roof_spec_from_slope(
         sloped_span = northwest_connector_roof_y,
         flat_span = northwest_connector_roof_x,
-        slope = 2.0 / 12,
+        slope = 3.0 / 12,
         max_roof_height = roof_height_max - northwest_connector_roof_height_reduction,
         thickness = roof_thickness);
 echo( northwest_connector_roof_spec);

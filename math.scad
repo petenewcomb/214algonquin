@@ -12,5 +12,8 @@ function normalize_angle( a) =
             ? normalize_angle( a - 360)
             : a);
 
-function vector_from_polar( a, m) =
+function polar_to_vector( a, m) =
         [ cos( a) * m, sin( a) * m];
+
+function vector_to_angle( v) = atan2( v[ 1], v[ 0]);
+function vector_to_polar( v) = [ vector_to_angle( v), vector_length( v)];

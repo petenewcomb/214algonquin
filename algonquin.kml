@@ -16,17 +16,17 @@
 					<tessellate>1</tessellate>
 					<altitudeMode>clampToGround</altitudeMode>
 					<coordinates>
-						-74.00160400000,44.28987400000,0
-						-74.00094151203,44.29041612078,0
+						-74.00158600000,44.28989100000,0
+						-74.00093978697,44.29044309471,0
 					</coordinates>
 				</LineString>
 				<LinearRing>
 					<tessellate>1</tessellate>
 					<altitudeMode>clampToGround</altitudeMode>
 					<coordinates>
-						-74.00094151203,44.29041612078,0
-						-74.00057517228,44.29000843560,0
-						-74.00128756723,44.28960486257,0
+						-74.00093978697,44.29044309471,0
+						-74.00056140385,44.29004108522,0
+						-74.00126163357,44.28962674624,0
 					</coordinates>
 				</LinearRing>
 				<LinearRing>

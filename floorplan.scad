@@ -394,7 +394,7 @@ greatroom_south_corner = [ greatroom_x, 0];
 
 module position_greatroom() {
     position_mudroom() {
-        translate( vector_from_polar( 90 + northwest_garage_angle, interior_wall_thickness)) {
+        translate( polar_to_vector( 90 + northwest_garage_angle, interior_wall_thickness)) {
             translate( mudroom_north_corner) {
                 children();
             }
@@ -724,9 +724,9 @@ module driveway_entrance( angle) {
     driveway_x = driveway_width * tan( angle);
 
     driveway_polygon = polygon_from_path( [ [ 0, 0],
-            vector_from_polar( angle, negative_flare_offset),
+            polar_to_vector( angle, negative_flare_offset),
             [ -driveway_x, 0],
-            vector_from_polar( 180 - angle, positive_flare_offset)]);
+            polar_to_vector( 180 - angle, positive_flare_offset)]);
     echo(driveway_polygon);
 
     difference() {

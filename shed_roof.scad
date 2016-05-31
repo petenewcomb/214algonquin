@@ -27,6 +27,8 @@ function shed_roof_min_roof_height( spec) = spec[ 2];
 function shed_roof_max_roof_height( spec) = spec[ 3];
 function shed_roof_vertical_thickness( spec) = spec[ 4];
 
+function shed_roof_slope( spec) = ( shed_roof_max_roof_height( spec) - shed_roof_min_roof_height( spec)) / shed_roof_sloped_span( spec);
+
 /* Create spec using slope and thickness instead of min_roof_height and vertical_thickness*/
 function shed_roof_vertical_thickness_from_slope( thickness, slope)
     = thickness * sqrt( slope * slope + 1);
@@ -121,6 +123,10 @@ function shed_roof_spec_from_constraints(
 
 module echo_shed_roof_slope( name, spec, denominator = $default_slope_denominator) {
     echo( str( name, " roof slope: ", shed_roof_slope( spec) * denominator, " / ", denominator));
+}
+
+module echo_shed_roof_spec( name, spec, low_overhang = 0, denominator = $default_slope_denominator) {
+    echo( str( name, " roof: ", shed_roof_slope( spec) * denominator, " / ", denominator, " pitch; low ceiling at ", ( shed_roof_min_roof_height( spec) - shed_roof_vertical_thickness( spec) + shed_roof_slope( spec) * low_overhang) / ft, " ft; highest point at ", shed_roof_max_roof_height( spec) / ft, " ft"));
 }
 
 module shed_roof( spec) {
