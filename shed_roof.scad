@@ -1,4 +1,4 @@
-include <units.scad>;
+use <units.scad>;
 
 /*
   Note page 19 of:
@@ -126,7 +126,7 @@ module echo_shed_roof_slope( name, spec, denominator = $default_slope_denominato
 }
 
 module echo_shed_roof_spec( name, spec, low_overhang = 0, denominator = $default_slope_denominator) {
-    echo( str( name, " roof: ", shed_roof_slope( spec) * denominator, " / ", denominator, " pitch; low ceiling at ", ( shed_roof_min_roof_height( spec) - shed_roof_vertical_thickness( spec) + shed_roof_slope( spec) * low_overhang) / ft, " ft; highest point at ", shed_roof_max_roof_height( spec) / ft, " ft"));
+    echo( str( name, " roof: ", shed_roof_slope( spec) * denominator, " / ", denominator, " pitch; low ceiling at ", ( shed_roof_min_roof_height( spec) - shed_roof_vertical_thickness( spec) + shed_roof_slope( spec) * low_overhang) / feet( 1), " ft; highest point at ", shed_roof_max_roof_height( spec) / feet( 1), " ft"));
 }
 
 module shed_roof( spec) {
@@ -147,7 +147,7 @@ module shed_roof( spec) {
     }
 }
 
-module shed_roof_cutout( spec, extra_height = 1 * in) {
+module shed_roof_cutout( spec, extra_height = inches( 1)) {
     sloped_span = shed_roof_sloped_span( spec);
     flat_span = shed_roof_flat_span( spec);
     min_roof_height = shed_roof_min_roof_height( spec);

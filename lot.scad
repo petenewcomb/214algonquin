@@ -1,5 +1,6 @@
-include <units.scad>;
-include <math.scad>;
+use <units.scad>;
+use <math.scad>;
+use <constants.scad>;
 
 function azimuth_magnetic_correct( a) =
         a - 13.00; // apparent magnetic declination
@@ -26,35 +27,35 @@ function polygon_from_path_internal( path, i, s) =
         j < len( path) ? concat( [ p], polygon_from_path_internal( path, i = j, s = p)) : [ p];
 
 
-boundary_polar_path = [
-        [ azimuth_to_polar( "N", 54, 10, 40, "E"), 263.00 * ft],
-        [ azimuth_to_polar( "S", 19, 45, 00, "E"), 177.00 * ft],
-        [ azimuth_to_polar( "S", 64, 38, 30, "W"), 237.46 * ft]
+function boundary_polar_path() = [
+        [ azimuth_to_polar( "N", 54, 10, 40, "E"), feet( 263.00)],
+        [ azimuth_to_polar( "S", 19, 45, 00, "E"), feet( 177.00)],
+        [ azimuth_to_polar( "S", 64, 38, 30, "W"), feet( 237.46)]
 ];
 
-boundary_vector_path = concat( [ [ 0, 0]], [
-        for ( p = boundary_polar_path)
+function boundary_vector_path() = concat( [ [ 0, 0]], [
+        for ( p = boundary_polar_path())
             polar_to_vector( p[ 0], p[ 1])
 ]);
 
-northwest_boundary_angle = boundary_polar_path[ 0][ 0];
-northwest_boundary_length = boundary_polar_path[ 0][ 1];
+function northwest_boundary_angle() = boundary_polar_path()[ 0][ 0];
+function northwest_boundary_length() = boundary_polar_path()[ 0][ 1];
 
-northeast_boundary_angle = normalize_angle( 180 + boundary_polar_path[ 1][ 0]);
-northeast_boundary_length = boundary_polar_path[ 1][ 1];
+function northeast_boundary_angle() = normalize_angle( 180 + boundary_polar_path()[ 1][ 0]);
+function northeast_boundary_length() = boundary_polar_path()[ 1][ 1];
 
-southeast_boundary_angle = normalize_angle( 180 + boundary_polar_path[ 2][ 0]);
-southeast_boundary_length = boundary_polar_path[ 2][ 1];
+function southeast_boundary_angle() = normalize_angle( 180 + boundary_polar_path()[ 2][ 0]);
+function southeast_boundary_length() = boundary_polar_path()[ 2][ 1];
 
-boundary_corners = polygon_from_path( boundary_vector_path);
+function boundary_corners() = polygon_from_path( boundary_vector_path());
 
-west_corner = boundary_corners[ 0];
-north_corner = boundary_corners[ 1];
-east_corner = boundary_corners[ 2];
-south_corner = boundary_corners[ 3];
+function west_corner() = boundary_corners()[ 0];
+function north_corner() = boundary_corners()[ 1];
+function east_corner() = boundary_corners()[ 2];
+function south_corner() = boundary_corners()[ 3];
 
-southwest_boundary_length = vector_length( vector_difference( south_corner, west_corner));
-southwest_boundary_angle = let( v = vector_difference( south_corner, west_corner)) atan( v[ 1] / v[ 0]);
+function southwest_boundary_length() = vector_length( vector_difference( south_corner(), west_corner()));
+function southwest_boundary_angle() = let( v = vector_difference( south_corner(), west_corner())) atan( v[ 1] / v[ 0]);
 
 module position_lot() {
     children();
@@ -62,14 +63,14 @@ module position_lot() {
 
 module lot_2d() {
     position_lot() {
-        polygon( boundary_corners);
+        polygon( boundary_corners());
     }
 }
 
 module lot_lines() {
     position_lot() {
         %difference() {
-            offset( delta = interior_wall_thickness) lot_2d();
+            offset( delta = interior_wall_thickness()) lot_2d();
             lot_2d();
         }
     }
@@ -78,8 +79,8 @@ module lot_lines() {
 /* Big rock next to driveway */
 module position_rock() {
     position_lot() {
-        rotate( [ 0, 0, -northwest_boundary_angle]) {
-            translate( [ 48 * ft, 50 * ft]) {
+        rotate( [ 0, 0, -northwest_boundary_angle()]) {
+            translate( [ feet( 48), feet( 50)]) {
                 children();
             }
         }
@@ -87,15 +88,15 @@ module position_rock() {
 }
 module rock() {
     position_rock() {
-        %circle( r = 5 * ft);
+        %circle( r = feet( 5));
     }
 }
 
 /* Big tree next to driveway */
 module position_bigtree() {
     position_lot() {
-        rotate( [ 0, 0, -northwest_boundary_angle]) {
-            translate( [ 69 * ft, 40 * ft]) {
+        rotate( [ 0, 0, -northwest_boundary_angle()]) {
+            translate( [ feet( 69), feet( 40)]) {
                 children();
             }
         }
@@ -103,15 +104,15 @@ module position_bigtree() {
 }
 module bigtree() {
     position_bigtree() {
-        %circle( r = 5 * ft);
+        %circle( r = feet( 5));
     }
 }
 
 /* Electrical meter */
 module position_meter() {
     position_lot() {
-        rotate( [ 0, 0, southwest_boundary_angle]) {
-            translate( [ southwest_boundary_length - 30 * ft, 31 * ft]) {
+        rotate( [ 0, 0, southwest_boundary_angle()]) {
+            translate( [ southwest_boundary_length() - feet( 30), feet( 31)]) {
                 children();
             }
         }
@@ -120,7 +121,17 @@ module position_meter() {
 module meter() {
     position_meter() {
         rotate( [ 0, 0, 45]) {
-            %square( [ 5 * ft, 1 * ft]);
+            %square( [ feet( 5), feet( 1)]);
         }
     }
 }
+
+module lot_constraints() {
+    lot_lines();
+    rock();
+    bigtree();
+    meter();
+}
+
+// Standalone rendering
+%lot_constraints();

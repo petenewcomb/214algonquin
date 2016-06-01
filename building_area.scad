@@ -1,4 +1,6 @@
-include <lot.scad>;
+use <lot.scad>;
+use <units.scad>;
+use <math.scad>;
 
 /*
     y = p1[ 1] + ( x - p1[ 0]) * v1[ 1] / v1[ 0]
@@ -43,48 +45,47 @@ function triangulate( r1, r2, d) = [
     ];
 
 
-building_area_southwest_setback_vector = polar_to_vector( southwest_boundary_angle + 90, 50 * ft);
-building_area_northwest_setback_vector = polar_to_vector( northwest_boundary_angle - 90, 20 * ft);
-building_area_southeast_setback_vector = polar_to_vector( southeast_boundary_angle + 90, 20 * ft);
+function building_area_southwest_setback_vector() = polar_to_vector( southwest_boundary_angle() + 90, feet( 50));
+function building_area_northwest_setback_vector() = polar_to_vector( northwest_boundary_angle() - 90, feet( 20));
+function building_area_southeast_setback_vector() = polar_to_vector( southeast_boundary_angle() + 90, feet( 20));
 
-building_area_west_corner = line_intersection(
-        p1 = vector_sum( [ west_corner, building_area_northwest_setback_vector]),
-        v1 = vector_difference( north_corner, west_corner),
-        p2 = vector_sum( [ west_corner, building_area_southwest_setback_vector]),
-        v2 = vector_difference( south_corner, west_corner));
+function building_area_west_corner() = line_intersection(
+        p1 = vector_sum( [ west_corner(), building_area_northwest_setback_vector()]),
+        v1 = vector_difference( north_corner(), west_corner()),
+        p2 = vector_sum( [ west_corner(), building_area_southwest_setback_vector()]),
+        v2 = vector_difference( south_corner(), west_corner()));
 
-building_area_south_corner = line_intersection(
-        p1 = vector_sum( [ south_corner, building_area_southeast_setback_vector]),
-        v1 = vector_difference( east_corner, south_corner),
-        p2 = vector_sum( [ south_corner, building_area_southwest_setback_vector]),
-        v2 = vector_difference( west_corner, south_corner));
+function building_area_south_corner() = line_intersection(
+        p1 = vector_sum( [ south_corner(), building_area_southeast_setback_vector()]),
+        v1 = vector_difference( east_corner(), south_corner()),
+        p2 = vector_sum( [ south_corner(), building_area_southwest_setback_vector()]),
+        v2 = vector_difference( west_corner(), south_corner()));
 
-setback_from_abrupt_change_in_slope = 20 * ft;
+function setback_from_abrupt_change_in_slope() = feet( 20);
 
-building_area_north_corner = vector_sum( [ building_area_west_corner, polar_to_vector( northwest_boundary_angle, 100 * ft - setback_from_abrupt_change_in_slope)]);
-building_area_east_corner = vector_sum( [ building_area_south_corner, polar_to_vector( southeast_boundary_angle, 65 * ft - setback_from_abrupt_change_in_slope)]);
+function building_area_north_corner() = vector_sum( [ building_area_west_corner(), polar_to_vector( northwest_boundary_angle(), feet( 100) - setback_from_abrupt_change_in_slope())]);
+function building_area_east_corner() = vector_sum( [ building_area_south_corner(), polar_to_vector( southeast_boundary_angle(), feet( 65) - setback_from_abrupt_change_in_slope())]);
 
-prominence_vector = triangulate( 112.75, 107.65, vector_length( vector_difference( building_area_west_corner, building_area_south_corner)));
-echo( prominence_vector);
-building_area_northeast_corner = vector_sum( [ building_area_west_corner, polar_to_vector( southwest_boundary_angle, prominence_vector[ 0]), polar_to_vector( southwest_boundary_angle + 90, prominence_vector[ 1] - setback_from_abrupt_change_in_slope)]);
+function prominence_vector() = triangulate( 112.75, 107.65, vector_length( vector_difference( building_area_west_corner(), building_area_south_corner())));
+function building_area_northeast_corner() = vector_sum( [ building_area_west_corner(), polar_to_vector( southwest_boundary_angle(), prominence_vector()[ 0]), polar_to_vector( southwest_boundary_angle() + 90, prominence_vector()[ 1] - setback_from_abrupt_change_in_slope())]);
 
-building_area_polygon = [
-        building_area_west_corner,
-        building_area_north_corner,
-        building_area_northeast_corner,
-        building_area_east_corner,
-        building_area_south_corner
-//        vector_sum( [ west_corner, polar_to_vector( northwest_boundary_angle, 0 * ft), polar_to_vector( northwest_boundary_angle - 90, 20 * ft)]),
-//        vector_sum( [ south_corner, polar_to_vector( southeast_boundary_angle, 50 * ft), polar_to_vector( southwest_boundary_angle, -20 * ft)]),
-//        vector_sum( [ south_corner, polar_to_vector( southeast_boundary_angle, 90 * ft), polar_to_vector( southwest_boundary_angle, -20 * ft)]),
-//        vector_sum( [ south_corner, polar_to_vector( southeast_boundary_angle, 110 * ft), polar_to_vector( southwest_boundary_angle, -50 * ft)]),
-//        vector_sum( [ west_corner, polar_to_vector( northwest_boundary_angle, 130 * ft), polar_to_vector( southwest_boundary_angle, 20 * ft)])
+function building_area_polygon() = [
+        building_area_west_corner(),
+        building_area_north_corner(),
+        building_area_northeast_corner(),
+        building_area_east_corner(),
+        building_area_south_corner()
+//        vector_sum( [ west_corner(), polar_to_vector( northwest_boundary_angle(), feet( 0)), polar_to_vector( northwest_boundary_angle() - 90, feet( 20))]),
+//        vector_sum( [ south_corner(), polar_to_vector( southeast_boundary_angle(), feet( 50)), polar_to_vector( southwest_boundary_angle(), -feet( 20))]),
+//        vector_sum( [ south_corner(), polar_to_vector( southeast_boundary_angle(), feet( 90)), polar_to_vector( southwest_boundary_angle(), -feet( 20))]),
+//        vector_sum( [ south_corner(), polar_to_vector( southeast_boundary_angle(), feet( 110)), polar_to_vector( southwest_boundary_angle(), -feet( 50))]),
+//        vector_sum( [ west_corner(), polar_to_vector( northwest_boundary_angle(), feet( 130)), polar_to_vector( southwest_boundary_angle(), feet( 20))])
 ];
 
 module position_building_area() {
     position_lot() {
-        translate( building_area_west_corner) {
-            rotate( [ 0, 0, northwest_boundary_angle - 90]) {
+        translate( building_area_west_corner()) {
+            rotate( [ 0, 0, northwest_boundary_angle() - 90]) {
                 children();
             }
         }
@@ -92,12 +93,20 @@ module position_building_area() {
 }
 
 module building_area_2d() {
-    polygon( building_area_polygon);
+    polygon( building_area_polygon());
 }
 
 module building_area_lines() {
     %difference() {
-        offset( delta = interior_wall_thickness) building_area_2d();
+        offset( delta = inches( 2)) building_area_2d();
         building_area_2d();
     }
 }
+
+module building_area_constraints() {
+    lot_constraints();
+    building_area_lines();
+}
+
+// Standalone rendering
+%building_area_constraints();

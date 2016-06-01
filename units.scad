@@ -1,2 +1,2 @@
-in = 1 / 12.0;
-ft = 12 * in;
+function feet( x) = x;
+function inches( x) = feet( x) / 12.0;
