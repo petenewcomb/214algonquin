@@ -1,11 +1,13 @@
 include <shower.scad>;
 
-accent_foot_cubby=true;
+accent_tile_vertical=false;
+
+function tile_landscape() = true;
 
 function ceiling_thickness() = inches(1); // TODO: should be 3/4 * some trig function of 3/12 pitch
 
 function back_wall_shelf_rough_depth() = inches(3.5);
-function accent_width() = inches(18);
+function accent_width() = 3*(mm(75)+grout_width())-grout_width();
 
 // back wall
 function back_wall_rough_width() = inches(72.75); // TODO: shim left wall by 1/4"
@@ -26,13 +28,16 @@ function window_jamb_opening_left_offset() = inches(13.875);
 function window_jamb_opening_right_offset() = inches(13.625);
 
 //function foot_cubby_height() = inches(16);
-function foot_cubby_height() = window_sill_height() - (knee_rough_height() + grout_width());
+function foot_cubby_height() = window_sill_height() - 4*(tile_height()+grout_width());
 //function foot_cubby_height() = window_sill_height() - (knee_rough_height() + grout_width() + tile_height()/2);
 function foot_cubby_depth() = inches(3.5);
 
 echo(foot_cubby_height=foot_cubby_height());
 
 function control_z_offset_rough_center() = inches(42);
+function bar_y_offset_rough_center() = inches(34);
+function handheld_y_offset_rough_center() = inches(25.5);
+function handheld_z_offset_rough_center() = inches(48);
 
 // left wall
 function left_wall_rough_width() = inches(62.25);
@@ -60,8 +65,8 @@ function right_control_y_offset_rough_center() = inches(45.5); // TODO: make con
 function right_bar_y_offset_rough_center() = bar_y_offset_rough_center();
 function right_control_z_offset_rough_center() = control_z_offset_rough_center();
 
-//function knee_rough_height() = inches(47) + inches(3.0/16); // TODO: reduce height to 47"
-function knee_rough_height() = window_sill_height() + window_jamb_opening_height() / 2 - grout_width() - tile_height() - grout_width() - tile_height() - wall_prep_thickness();
+//function knee_rough_height() = inches(47);
+function knee_rough_height() = window_sill_height() + window_jamb_opening_height() / 2 - grout_width() / 2 - tile_height() - grout_width() - tile_height() - wall_prep_thickness();
 //function knee_rough_height() = window_sill_height() + (window_jamb_opening_height()-tile_height()) / 2 - grout_width() - tile_height() - grout_width() - tile_height() - wall_prep_thickness();
 function knee_rough_thickness() = inches(3.5);
 
@@ -211,21 +216,34 @@ module shower_tile_surround() {
         } else { // horizontal accent
 
             // upper back wall
-            translate([wall_prep_thickness(), 0, tile_height()+grout_width()]) {
-                tile_grid(width=back_wall_width,height=upper_surround_height-tile_height()-grout_width(),first_tile_width=back_wall_first_tile_width());
-                translate([0,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=tile_height(),length=back_wall_width,seed=8481);
+            translate([wall_prep_thickness(), 0, 0]) {
+                translate([0, 0, tile_height()+grout_width()]) {
+                    tile_grid(width=back_wall_width,height=upper_surround_height-tile_height()-grout_width(),first_tile_width=back_wall_first_tile_width());
+                    translate([0,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=accent_width(),length=back_wall_width,seed=8481);
+                }
+                tile_grid(width=back_wall_width,height=tile_height()-accent_width()-grout_width(),first_tile_width=back_wall_first_tile_width());
             }
 
             // upper left wall
-            translate([wall_prep_thickness(), -(tile_thickness()+grout_width()), tile_height()+grout_width()]) {
-                rotate([0,0,90]) tile_grid(width=-upper_side_wall_width,height=upper_surround_height-tile_height()-grout_width());
-                translate([0,-upper_side_wall_width,-grout_width()]) rotate([0,90,90]) accent_tile(width=tile_height(),length=upper_side_wall_width,seed=25);
+            translate([wall_prep_thickness(), -(tile_thickness()+grout_width()), 0]) {
+                rotate([0,0,90]) {
+                    translate([0, 0, tile_height()+grout_width()]) {
+                        tile_grid(width=-upper_side_wall_width,height=upper_surround_height-tile_height()-grout_width());
+                        translate([-upper_side_wall_width,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=accent_width(),length=upper_side_wall_width,seed=25);
+                    }
+                    tile_grid(width=-upper_side_wall_width,height=tile_height()-accent_width()-grout_width());
+                }
             }
 
             // upper right wall
-            translate([back_wall_rough_width()-wall_prep_thickness(), -(tile_thickness()+grout_width()), tile_height()+grout_width()]) {
-                rotate([0,0,-90]) tile_grid(width=upper_side_wall_width,height=upper_surround_height-tile_height()-grout_width());
-                translate([0,0,-grout_width()]) rotate([0,90,-90]) accent_tile(width=tile_height(),length=upper_side_wall_width,seed=188);
+            translate([back_wall_rough_width()-wall_prep_thickness(), -(tile_thickness()+grout_width()), 0]) {
+                rotate([0,0,-90]) {
+                    translate([0, 0, tile_height()+grout_width()]) {
+                        tile_grid(width=upper_side_wall_width,height=upper_surround_height-tile_height()-grout_width());
+                        translate([0,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=accent_width(),length=upper_side_wall_width,seed=188);
+                    }
+                    tile_grid(width=upper_side_wall_width,height=tile_height()-accent_width()-grout_width());
+                }
             }
         }
     }
@@ -310,8 +328,15 @@ module shower() {
             translate([0,-showerhead_y_offset_rough_center(),showerhead_z_offset_rough_center()]) {
                 rotate([0,90,0]) cylinder(h=feet(1),d=inches(1),center=false);
             }
+            translate([0,-handheld_y_offset_rough_center(),handheld_z_offset_rough_center()]) {
+                rotate([0,90,0]) cylinder(h=feet(1),d=inches(1),center=false);
+            }
+
 
             translate([back_wall_rough_width(),-showerhead_y_offset_rough_center(),showerhead_z_offset_rough_center()]) {
+                rotate([0,-90,0]) cylinder(h=feet(1),d=inches(1),center=false);
+            }
+            translate([back_wall_rough_width(),-handheld_y_offset_rough_center(),handheld_z_offset_rough_center()]) {
                 rotate([0,-90,0]) cylinder(h=feet(1),d=inches(1),center=false);
             }
 
@@ -322,11 +347,9 @@ module shower() {
         // window opening
         translate([window_jamb_opening_right_offset(),-wall_prep_thickness(),window_sill_height()]) {
             w=(window_jamb_opening_right_offset()-wall_prep_thickness()-back_wall_first_tile_width())/(tile_width()+grout_width());
-            h=(window_sill_height()-floor_prep_thickness()-back_wall_first_tile_height())/(tile_height()+grout_width());
-            first_tile_height=true&&window_jamb_opening_height()<=tile_height()?0:tile_height()-(tile_height()+grout_width())*(h-floor(h))+grout_width();
             shower_cubby(width=window_jamb_opening_width(),height=window_jamb_opening_height(),
                     first_tile_width=tile_width()-(tile_width()+grout_width())*(w-floor(w))+grout_width(),
-                    first_tile_height=first_tile_height,
+                    first_tile_height=window_jamb_opening_height()/2-grout_width()/2,
                     depth=window_sill_depth(),omit_back_wall=true);
         }
 
