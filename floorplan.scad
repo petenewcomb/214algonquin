@@ -21,6 +21,7 @@ use <master_bath.scad>;
 use <master_closet.scad>;
 use <southeast_garage.scad>;
 use <master_deck.scad>;
+use <workshop.scad>;
 
 module upperfloor_rooms() {
     main_deck();
@@ -42,6 +43,7 @@ module upperfloor_rooms() {
     master_closet();
     southeast_garage();
     master_deck();
+    workshop();
 /*
     garage();
     workshop();
@@ -100,6 +102,7 @@ use <building_area.scad>;
 rotate( [ 0, 0, -house_orientation_angle()]) {
     translate( vector_difference( [ 0, 0], building_area_west_corner())) {
         %building_area_constraints();
-        floorplan();
+//        floorplan();
+        upperfloor_rooms();
     }
 }

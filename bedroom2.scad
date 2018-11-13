@@ -4,7 +4,7 @@ use <constants.scad>;
 
 use <stairs.scad>;
 
-function bedroom2_x() = feet( 15);
+function bedroom2_x() = feet( 11.5);
 function bedroom2_y() = feet( 15);
 module position_bedroom2() {
     position_stairs() {

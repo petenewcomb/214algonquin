@@ -131,6 +131,8 @@ module lot_constraints() {
     rock();
     bigtree();
     meter();
+
+echo( str( boundary_polar_path()));
 }
 
 // Standalone rendering

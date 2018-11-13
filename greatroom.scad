@@ -16,7 +16,7 @@ module position_greatroom() {
 }
 module greatroom() {
     position_greatroom() {
-        square( [ greatroom_x(), greatroom_y()]);
+        #square( [ greatroom_x(), greatroom_y()]);
     }
 }
 

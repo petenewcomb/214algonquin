@@ -2,13 +2,13 @@ use <math.scad>;
 use <units.scad>;
 use <constants.scad>;
 
-use <mudroom.scad>;
+use <workshop.scad>;
 
-function laundry_x() = feet( 12.5);
-function laundry_y() = feet( 8.5);
+function laundry_x() = feet( 8);
+function laundry_y() = workshop_y();
 module position_laundry() {
-    position_mudroom() {
-        translate( [ 0, -laundry_y()]) {
+    position_workshop() {
+        translate( [ workshop_x() + exterior_wall_thickness(), 0]) {
             children();
         }
     }

@@ -2,13 +2,13 @@ use <math.scad>;
 use <units.scad>;
 use <constants.scad>;
 
-use <northwest_garage.scad>;
+use <greatroom.scad>;
 
-function mudroom_x() = feet( 8);
+function mudroom_x() = greatroom_x();
 function mudroom_y() = feet( 8);
 module position_mudroom() {
-    position_northwest_garage() {
-        translate( [ northwest_garage_x() + exterior_wall_thickness(), northwest_garage_y() - mudroom_y()]) {
+    position_greatroom() {
+        translate( [ exterior_wall_thickness(), -exterior_wall_thickness() - mudroom_y()]) {
             children();
         }
     }

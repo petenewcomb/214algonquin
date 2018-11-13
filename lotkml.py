@@ -36,12 +36,18 @@ def azimuth(ns,d,m,s,ew):
         raise ValueError, ew
 #    a = a - 14.35 # magnetic declination in June 2009
     a = a - 14.22 # 1980-01-01
-    a = a - 14.22 # 1980-01-01
     while a < -180:
         a += 360
     while a > 180:
         a -= 360
     return a
+
+# http://www.movable-type.co.uk/scripts/latlong.html
+# bearing 42.7928 : 42° 47' 34"
+# 11.52 km
+# algonquin lot corner near driveway: -74.001586,44.289891
+# whiteface tower: -73.903100,44.365900
+
 
 #lon,lat = -73.94098416362,44.23961018733
 lon,lat = -74.001586,44.289891

@@ -5,7 +5,7 @@ function inches( x) = x;
 
 function loft_length() = feet(30.0);
 function loft_width() = inches( 48.0);
-function loft_surface_height() = inches( 99.0);
+function loft_surface_height() = inches( 98);
 function loft_thickness() = inches( 6.0);
 
 function loft_stairs_total_steps() = 13;
@@ -18,10 +18,15 @@ function loft_stairs_landing_surface_height() = loft_stairs_lower_flight_steps()
 
 module loft() {
     union() {
+        cut_in=inches(48-4)+loft_stairs_tread_run() / 2 + inches( 6.75) - loft_stairs_tread_run()/2;
+        translate( [0, 0, loft_surface_height() - loft_thickness()]) {
+            echo("stair cut-in",cut_in-inches(48));
+            %cube([cut_in,inches(1),inches(1)]);
+        }
         translate( [ inches( 48) - inches(4), -loft_width(), loft_surface_height() - loft_thickness()]) {
             difference() {
                 cube( [ loft_length(), loft_width(), loft_thickness()]);
-                translate( [ -inches(1), loft_width() - loft_stairs_tread_width() - inches(6), -inches(1)]) {
+                #translate( [ -inches(1), loft_width() - loft_stairs_tread_width() - inches(6), -inches(1)]) {
                     cube( [ loft_stairs_tread_run() / 2 + inches( 6.75) + inches(1), loft_stairs_tread_width() + 2*inches(3) + inches(1), loft_thickness() + inches(2)]);
                 }
             }
@@ -133,6 +138,8 @@ module loft_stairs_lower_left_stringer() {
 
 function loft_stairs_tread_rise() = loft_surface_height() / loft_stairs_total_steps();
 function loft_stairs_tread_run() = inches( 9.5);
+
+echo(rise=loft_stairs_tread_rise());
 
 function loft_stairs_tread_thickness() = inches(2);
 function loft_stairs_tread_width() = inches(24);

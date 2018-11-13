@@ -1,13 +1,13 @@
 use <math.scad>;
 
-tile_alpha = 0.4;
+tile_alpha = 0.5;
 simplify_accent_tile=false;
 shower_bar_alpha = 1.0;
-stud_alpha = 0.3;
-drywall_alpha = 1.0;
-ceiling_alpha = 1.0;
-floor_tile_alpha = 1.0;
-accent_tile_alpha = 0.6;
+stud_alpha = 1.0;
+drywall_alpha = 0.4;
+ceiling_alpha = 0.8;
+floor_tile_alpha = 0.8;
+accent_tile_alpha = 0.3;
 accent_cubby = false;
 
 $fn = 20;
@@ -39,9 +39,6 @@ function bar_standoff() = inches(1);
 function bar_height() = inches(36);
 function bar_diameter() = inches(3.0/4);
 function bar_z_offset() = inches(42);
-
-function showerhead_y_offset_rough_center() = inches(24);
-function showerhead_z_offset_rough_center() = inches(83);
 
 function tile_color() = [0.75,0.75,0.7,tile_alpha];
 
@@ -158,7 +155,7 @@ fixed_length_interlocking_mosaic_colors = [
             [for (x=c) x/255.0]
         ];
 
-module fixed_length_interlocking_mosaic_tile(width,length,pattern_index=0,width_offset=0,length_offset=-inches(2),seed=1) {
+module fixed_length_interlocking_mosaic_tile(width,length,pattern_index=0,width_offset=0,length_offset=0,seed=1) {
     thickness=inches(5.0/16);
     grout_width=inches(1.0/8);
     segment_length=fixed_length_interlocking_mosaic_segment_length;
@@ -175,7 +172,7 @@ module fixed_length_interlocking_mosaic_tile(width,length,pattern_index=0,width_
             translate([width_offset+segment_width,0,0]) rotate([0,-90,0]) tile_row(width=length,height=segment_width,first_tile_width=first_tile_length,tile_width=segment_length,tile_height=segment_width,grout_width=grout_width,tile_thickness=thickness,colors=colors,ignore_small_height=true);
             new_width_offset=width_offset+segment_width+grout_width;
             if (((2*pattern_index)%len(fixed_length_interlocking_mosaic_pattern))==0) {
-                fixed_length_interlocking_mosaic_tile(width,length,pattern_index=pattern_index+1,width_offset=new_width_offset,length_offset=-rands(min_value=0,max_value=4,value_count=1,seed=seed*25791)[0],seed=seed*33);
+                fixed_length_interlocking_mosaic_tile(width,length,pattern_index=pattern_index+1,width_offset=new_width_offset,length_offset=-segment_length*(.25+.5*floor(rands(min_value=0,max_value=1,value_count=1,seed=seed*25791)[0])),seed=seed*33);
             } else {
                 fixed_length_interlocking_mosaic_tile(width,length,pattern_index=pattern_index+1,width_offset=new_width_offset,length_offset=length_offset,seed=seed);
             }
@@ -184,17 +181,17 @@ module fixed_length_interlocking_mosaic_tile(width,length,pattern_index=0,width_
 }
 
 
-function generate_sequence_recur(target_length,choices,decision_index,decisions,grout_width) =
+function generate_sequence_recur(target_length,choices,decision_index,decisions,grout_width,initial_offset) =
         decision_index == (len(decisions) - 2)
-        ? let (choice=decisions[decision_index+1]*choices[floor(decisions[decision_index]*len(choices))]) [[0, 0, min(choice,target_length)]]
-        : ( let (seq=generate_sequence_recur(target_length,choices,decision_index+1,decisions,grout_width))
+        ? let (choice=initial_offset*choices[floor(decisions[decision_index]*len(choices))]) [[0, 0, min(choice,target_length)]]
+        : ( let (seq=generate_sequence_recur(target_length,choices,decision_index+1,decisions,grout_width,initial_offset))
             let (length=seq[0][1] + seq[0][2])
             length >= target_length ? seq
             : ( let (remaining_choices=[for (c=choices) if (len(choices)==1||c!=seq[0][2]) c])
                 let (choice=remaining_choices[floor(decisions[decision_index]*len(remaining_choices))])
                 concat([[1+seq[0][0],length+grout_width,min(target_length-length-grout_width,choice)]],seq)));
 
-function generate_sequence(length,choices,grout_width,seed) = generate_sequence_recur(target_length=length,choices=choices,decision_index=0,decisions=rands(min_value=0.0,max_value=1.0,value_count=2+ceil(length/min(choices)),seed),grout_width=grout_width);
+function generate_sequence(length,choices,grout_width,initial_offset,seed) = generate_sequence_recur(target_length=length,choices=choices,decision_index=0,decisions=rands(min_value=0.0,max_value=1.0,value_count=2+ceil(length/min(choices)),seed),grout_width=grout_width,initial_offset=initial_offset);
 
 module random_length_mosaic_tile(width,length,choices,colors,thickness,grout_width,segment_width,seed=0) {
     translate([0,-tile_thickness(),0]) {
@@ -203,9 +200,11 @@ module random_length_mosaic_tile(width,length,choices,colors,thickness,grout_wid
         } else {
             union() {
                 columns = floor((width+grout_width)/(segment_width+grout_width));
-                z_offsets = rands(min_value=inches(0),max_value=max(choices),value_count=columns,seed=seed*287);
+//                z_offsets = max(choices)*(.25+.5*floor(rands(min_value=0,max_value=2,value_count=columns,seed=seed*287)));
                 for (column=[0:columns-1]) {
-                    sequence=generate_sequence(length=length,choices=choices,grout_width=grout_width,seed=seed*897*(1+column));
+                    sequence=generate_sequence(length=length,choices=choices,grout_width=grout_width,initial_offset=[.33,0,.66][column%3],seed=seed*8971*(1+column));
+                    echo(length=length,choices=choices,grout_width=grout_width,seed=seed*897*(1+column));
+                    echo(seq1=sequence[0],seq2=sequence[1]);
                     segment_colors = [for (x=rands(min_value=0,max_value=len(colors),value_count=len(sequence),seed=seed*253*(1+column))) floor(x)];
                     for (segment=sequence) {
                         segment_index=segment[0];
@@ -223,24 +222,25 @@ module random_length_mosaic_tile(width,length,choices,colors,thickness,grout_wid
     }
 }
 
-module shower_cubby(width,height,first_tile_width,first_tile_height,depth=inches(3.5),omit_back_wall=false,seed=3) {
-    adjusted_first_tile_height=min(tile_height(),first_tile_height+tile_thickness()+(height<=(first_tile_height+grout_width())?tile_thickness():0));
+module shower_cubby(width,height,first_tile_width=0,first_tile_height=0,depth=inches(3.5),omit_back_wall=false,seed=3,grout_inside_top=false,grout_inside_left=false,grout_inside_right=false,grout_inside_bottom=false) {
+    adjusted_first_tile_height=first_tile_height==0?0:min(max(tile_height(),tile_width()),first_tile_height-grout_width()+(height<=(first_tile_height+grout_width())?tile_thickness():0));
+    shelf_overhang=inches(1.0/8);
 
     // shelf
-    translate([grout_width(),-tile_thickness(),grout_width()]) {
-        rotate([-90,0,0]) tile_grid(width=width,height=depth-grout_width(),first_tile_width=first_tile_width-grout_width());
+    translate([grout_width(),-tile_thickness()-shelf_overhang,grout_width()]) {
+        rotate([-90,0,0]) tile_grid(width=width-2*grout_width(),height=depth-grout_width()+shelf_overhang,first_tile_width=(first_tile_width==0?tile_width():first_tile_width));
     }
 
     // ceiling
-    translate([grout_width(),depth-tile_thickness()-grout_width(),height+tile_thickness()]) {
-        rotate([90,0,0]) tile_grid(width=width-2*grout_width(),height=depth-tile_thickness()-2*grout_width(),first_tile_width=first_tile_width-grout_width());
+    translate([grout_width(),depth-(grout_inside_top?0:tile_thickness()+grout_width()),height+tile_thickness()]) {
+        rotate([90,0,0]) tile_grid(width=width-2*grout_width(),height=depth-grout_width()-(grout_inside_top?0:tile_thickness()+grout_width()),first_tile_width=(first_tile_width==0?tile_width():first_tile_width));
     }
 
     if (!omit_back_wall) {
         // back
-        translate([-tile_thickness(),depth,grout_width()]) {
+        translate([grout_inside_left?grout_width():-tile_thickness(),depth,grout_width()]) {
             if (!accent_cubby) {
-                tile_grid(width=width+2*tile_thickness(),height=height+tile_thickness()-grout_width(),first_tile_width=first_tile_width+tile_thickness(),first_tile_height=adjusted_first_tile_height);
+                tile_grid(width=width+(grout_inside_left?-grout_width():tile_thickness())+(grout_inside_right?-grout_width():tile_thickness()),height=height+(grout_inside_bottom?-grout_width():0)+(grout_inside_top?-grout_width():tile_thickness()-grout_width()),first_tile_width=(first_tile_width==0?tile_width():first_tile_width)+tile_thickness(),first_tile_height=adjusted_first_tile_height);
             } else {
                 if (accent_tile_vertical) {
                     accent_tile(width=width+2*tile_thickness(),length=height+tile_thickness(),seed=seed*223);
@@ -251,13 +251,17 @@ module shower_cubby(width,height,first_tile_width,first_tile_height,depth=inches
         }
     }
 
+    side_tile_height=max(tile_height(),tile_width());
+    side_tile_width=min(tile_height(),tile_width());
+
     // left
     translate([-tile_thickness(),grout_width(),grout_width()]) {
-        rotate([0,0,90]) tile_grid(width=depth-tile_thickness()-2*grout_width(),height=height+tile_thickness()-grout_width(),first_tile_height=adjusted_first_tile_height);
+        rotate([0,0,90]) tile_grid(width=depth-tile_thickness()-2*grout_width()+(grout_inside_left?grout_width()+tile_thickness():0),height=height+tile_thickness()-grout_width(),first_tile_height=adjusted_first_tile_height,tile_width=side_tile_width,tile_height=side_tile_height);
+//        echo(width=depth-tile_thickness()-2*grout_width()+(grout_inside_left?grout_width()+tile_thickness():0),height=height+tile_thickness()-grout_width(),first_tile_height=adjusted_first_tile_height,tile_width=side_tile_width,tile_height=side_tile_height);
     }
 
     // right
-    translate([width+tile_thickness(),depth-tile_thickness()-grout_width(),grout_width()]) {
-        rotate([0,0,-90]) tile_grid(width=depth-tile_thickness()-2*grout_width(),height=height+tile_thickness()-grout_width(),first_tile_height=adjusted_first_tile_height);
+    translate([width+tile_thickness(),depth-tile_thickness()-grout_width()+(grout_inside_left?grout_width()+tile_thickness():0),grout_width()]) {
+        rotate([0,0,-90]) tile_grid(width=depth-tile_thickness()-2*grout_width()+(grout_inside_right?grout_width()+tile_thickness():0),height=height+tile_thickness()-grout_width(),first_tile_height=adjusted_first_tile_height,tile_width=side_tile_width,tile_height=side_tile_height);
     }
 }

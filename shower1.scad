@@ -27,6 +27,14 @@ function window_jamb_opening_width() = inches(45.375);
 function window_jamb_opening_left_offset() = inches(13.875);
 function window_jamb_opening_right_offset() = inches(13.625);
 
+function right_wall_cubby_height() = window_jamb_opening_height();
+function right_wall_cubby_width() = right_wall_cubby_height();
+function right_wall_cubby_right_offset() = wall_prep_thickness()+tile_thickness()+2*(grout_width()+tile_width())+grout_width()/2-right_wall_cubby_width()/2;
+function right_wall_cubby_depth() = inches(3.5);
+
+echo(right_wall_cubby_center=right_wall_cubby_right_offset()+right_wall_cubby_width()/2);
+echo(right_wall_cubby_width=right_wall_cubby_width());
+
 //function foot_cubby_height() = inches(16);
 function foot_cubby_height() = window_sill_height() - 4*(tile_height()+grout_width());
 //function foot_cubby_height() = window_sill_height() - (knee_rough_height() + grout_width() + tile_height()/2);
@@ -34,21 +42,37 @@ function foot_cubby_depth() = inches(3.5);
 
 echo(foot_cubby_height=foot_cubby_height());
 
-function control_z_offset_rough_center() = inches(42);
+//function control_z_offset_rough_center() = inches(42);
+function control_z_offset_rough_center() = knee_rough_height()+wall_prep_thickness()-grout_width()-tile_height()/2;
+echo(control_z_offset_rough_center=control_z_offset_rough_center());
 function bar_y_offset_rough_center() = inches(34);
-function handheld_y_offset_rough_center() = inches(25.5);
-function handheld_z_offset_rough_center() = inches(48);
+//function handheld_y_offset_rough_center() = inches(25);
+function handheld_y_offset_rough_center() = showerhead_y_offset_rough_center();
+//function handheld_z_offset_rough_center() = inches(48);
+function handheld_z_offset_rough_center() = knee_rough_height()+wall_prep_thickness()-grout_width()/2;
+echo(handheld_z_offset_rough_center=handheld_z_offset_rough_center());
+
+//function showerhead_y_offset_rough_center() = inches(24);
+function showerhead_y_offset_rough_center() = wall_prep_thickness()+tile_thickness()+grout_width()+left_wall_first_tile_width()+grout_width()/2;
+echo(showerhead_y_offset_rough_center=showerhead_y_offset_rough_center());
+//function showerhead_z_offset_rough_center() = inches(83);
+function showerhead_z_offset_rough_center() = knee_rough_height()+wall_prep_thickness()+3*(tile_height()+grout_width())-grout_width()/2;
+echo(showerhead_z_offset_rough_center=showerhead_z_offset_rough_center());
+echo(showerhead_z_offset_from_floor=showerhead_z_offset_rough_center()-floor_prep_thickness()-floor_tile_thickness());
+echo(showerhead_z_offset_from_window_center=tile_height()+grout_width());
+echo(handheld_z_offset_from_window_center=-2*(tile_height()+grout_width()));
 
 // left wall
 function left_wall_rough_width() = inches(62.25);
-function left_wall_row_width() = left_wall_rough_width() - 2 * wall_prep_thickness() - tile_thickness();
-function left_wall_columns() = width_in_tiles(left_wall_row_width());
-function left_wall_first_tile_width() = tile_width()-grout_width()-back_wall_first_tile_width(); //inches(3.5)-grout_width();
-function left_wall_last_tile_width() = left_wall_row_width()-width_of_tiles(left_wall_columns()-2)-2*grout_width()-left_wall_first_tile_width();
+function left_wall_row_width() = drywall_thickness()+left_wall_rough_width()-grout_width()-tile_thickness()-wall_prep_thickness();
+function left_wall_columns() = force_odd(width_in_tiles(left_wall_row_width()));
+//function left_wall_first_tile_width() = tile_width() - (width_of_tiles(left_wall_columns()) - left_wall_row_width()) / 2;
+function left_wall_first_tile_width() = tile_width();
+//function left_wall_first_tile_width() = showerhead_y_offset_rough_center()-grout_width()/2-grout_width()-tile_thickness()-wall_prep_thickness();
 function left_wall_knee_rough_width() = inches(17.75); // TODO: make consistent with right_wall_knee_rough_width()
 function left_wall_rough_height() = inches(99.5);
 function left_wall_row_height() = left_wall_rough_height() - ceiling_thickness() - floor_prep_thickness();
-function left_control_y_offset_rough_center() = inches(45); // TODO: make consistent with right_control_y_offset_rough_center()
+function left_control_y_offset_rough_center() = inches(45-2); // TODO: make consistent with right_control_y_offset_rough_center()
 function left_bar_y_offset_rough_center() = bar_y_offset_rough_center();
 function left_control_z_offset_rough_center() = control_z_offset_rough_center();
 
@@ -61,7 +85,7 @@ function right_wall_last_tile_width() = tile_width();
 function right_wall_knee_rough_width() = inches(17.25); // TODO: make consistent with left_wall_knee_rough_width()
 function right_wall_rough_height() = inches(117.5);
 function right_wall_row_height() = right_wall_rough_height() - ceiling_thickness() - floor_prep_thickness();
-function right_control_y_offset_rough_center() = inches(45.5); // TODO: make consistent with left_control_y_offset_rough_center()
+function right_control_y_offset_rough_center() = inches(45.5-2); // TODO: make consistent with left_control_y_offset_rough_center()
 function right_bar_y_offset_rough_center() = bar_y_offset_rough_center();
 function right_control_z_offset_rough_center() = control_z_offset_rough_center();
 
@@ -134,11 +158,11 @@ module shower_tile_surround() {
         } else {
             // lower left wall
             translate([wall_prep_thickness(), -(tile_thickness()+grout_width()), 0]) {
-                rotate([0,0,90]) tile_grid(width=-lower_side_wall_width,height=-lower_surround_height,first_tile_width=tile_width()-back_wall_shelf_rough_depth());
+                rotate([0,0,90]) tile_grid(width=-lower_side_wall_width,height=-lower_surround_height,first_tile_width=left_wall_first_tile_width()-back_wall_shelf_rough_depth());
             }
             // lower right wall
             translate([back_wall_rough_width()-wall_prep_thickness(), -(tile_thickness()+grout_width()), 0]) {
-                rotate([0,0,-90]) tile_grid(width=lower_side_wall_width,height=-lower_surround_height,first_tile_width=tile_width()-back_wall_shelf_rough_depth());
+                rotate([0,0,-90]) tile_grid(width=lower_side_wall_width,height=-lower_surround_height,first_tile_width=right_wall_first_tile_width()-back_wall_shelf_rough_depth());
             }
         }
 
@@ -154,7 +178,7 @@ module shower_tile_surround() {
         translate([left_wall_knee_rough_width()+wall_prep_thickness(), -left_wall_rough_width()-drywall_thickness()+back_wall_shelf_rough_depth()+wall_prep_thickness(), 0]) {
             rotate([0,0,90]) tile_grid(width=endcap_width,height=-lower_surround_height);
         }
-        translate([wall_prep_thickness()+tile_thickness()+grout_width(), -left_wall_rough_width()-drywall_thickness()+back_wall_shelf_rough_depth()+wall_prep_thickness(), 0]) {
+        translate([wall_prep_thickness()+tile_thickness()+grout_width(), -left_wall_rough_width()-drywall_thickness()+back_wall_shelf_rough_depth()+wall_prep_thickness(), grout_width()]) {
             width=left_wall_knee_rough_width()-grout_width();
             twidth=tile_width()>=tile_height()?tile_width():tile_height();
             theight=tile_width()>=tile_height()?tile_height():tile_width();
@@ -172,7 +196,7 @@ module shower_tile_surround() {
         translate([back_wall_rough_width()-right_wall_knee_rough_width()-wall_prep_thickness(), -left_wall_rough_width()-drywall_thickness()+back_wall_shelf_rough_depth()+wall_prep_thickness()+endcap_width, 0]) {
             rotate([0,0,-90]) tile_grid(width=endcap_width,height=-lower_surround_height);
         }
-        translate([back_wall_rough_width()-wall_prep_thickness()-tile_thickness()-grout_width(), -left_wall_rough_width()-drywall_thickness()+back_wall_shelf_rough_depth()+wall_prep_thickness(), 0]) {
+        translate([back_wall_rough_width()-wall_prep_thickness()-tile_thickness()-grout_width(), -left_wall_rough_width()-drywall_thickness()+back_wall_shelf_rough_depth()+wall_prep_thickness(), grout_width()]) {
             width=right_wall_knee_rough_width()-grout_width();
             translate([-width,0,0]) {
                 twidth=tile_width()>=tile_height()?tile_width():tile_height();
@@ -215,34 +239,36 @@ module shower_tile_surround() {
 
         } else { // horizontal accent
 
+            sliver_height = (tile_height() - accent_width() - 2*grout_width()) / 2;
+
             // upper back wall
             translate([wall_prep_thickness(), 0, 0]) {
-                translate([0, 0, tile_height()+grout_width()]) {
-                    tile_grid(width=back_wall_width,height=upper_surround_height-tile_height()-grout_width(),first_tile_width=back_wall_first_tile_width());
+                translate([0, 0, tile_height()-sliver_height]) {
+                    tile_grid(width=back_wall_width,height=upper_surround_height-tile_height()+sliver_height,first_tile_width=back_wall_first_tile_width(),first_tile_height=sliver_height);
                     translate([0,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=accent_width(),length=back_wall_width,seed=8481);
                 }
-                tile_grid(width=back_wall_width,height=tile_height()-accent_width()-grout_width(),first_tile_width=back_wall_first_tile_width());
+                tile_grid(width=back_wall_width,height=sliver_height,first_tile_width=back_wall_first_tile_width());
             }
 
             // upper left wall
             translate([wall_prep_thickness(), -(tile_thickness()+grout_width()), 0]) {
                 rotate([0,0,90]) {
-                    translate([0, 0, tile_height()+grout_width()]) {
-                        tile_grid(width=-upper_side_wall_width,height=upper_surround_height-tile_height()-grout_width());
+                    translate([0, 0, tile_height()-sliver_height]) {
+                        tile_grid(width=-upper_side_wall_width,height=upper_surround_height-tile_height()+sliver_height,first_tile_width=left_wall_first_tile_width(),first_tile_height=sliver_height);
                         translate([-upper_side_wall_width,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=accent_width(),length=upper_side_wall_width,seed=25);
                     }
-                    tile_grid(width=-upper_side_wall_width,height=tile_height()-accent_width()-grout_width());
+                    tile_grid(width=-upper_side_wall_width,height=sliver_height,first_tile_width=left_wall_first_tile_width());
                 }
             }
 
             // upper right wall
             translate([back_wall_rough_width()-wall_prep_thickness(), -(tile_thickness()+grout_width()), 0]) {
                 rotate([0,0,-90]) {
-                    translate([0, 0, tile_height()+grout_width()]) {
-                        tile_grid(width=upper_side_wall_width,height=upper_surround_height-tile_height()-grout_width());
+                    translate([0, 0, tile_height()-sliver_height]) {
+                        tile_grid(width=upper_side_wall_width,height=upper_surround_height-tile_height()+sliver_height,first_tile_height=sliver_height);
                         translate([0,0,-grout_width()]) rotate([0,90,0]) accent_tile(width=accent_width(),length=upper_side_wall_width,seed=188);
                     }
-                    tile_grid(width=upper_side_wall_width,height=tile_height()-accent_width()-grout_width());
+                    tile_grid(width=upper_side_wall_width,height=sliver_height);
                 }
             }
         }
@@ -317,6 +343,10 @@ module shower() {
                 cube([window_jamb_opening_width(),feet(1),window_jamb_opening_height()]);
             }
 
+            translate([back_wall_rough_width()-feet(1),-right_wall_cubby_right_offset(),window_sill_height()]) {
+                rotate([0,0,-90]) cube([right_wall_cubby_width(),feet(1),right_wall_cubby_height()]);
+            }
+
             translate([0,-left_control_y_offset_rough_center(),control_z_offset_rough_center()]) {
                 rotate([0,90,0]) cylinder(h=feet(1),d=inches(5),center=false);
             }
@@ -353,14 +383,21 @@ module shower() {
                     depth=window_sill_depth(),omit_back_wall=true);
         }
 
+        // right wall cubby
+        translate([back_wall_rough_width()-wall_prep_thickness(),-right_wall_cubby_right_offset(),window_sill_height()]) rotate([0,0,-90]) {
+            w=(right_wall_cubby_right_offset()-wall_prep_thickness()-tile_thickness()-grout_width())/(tile_width()+grout_width());
+            shower_cubby(width=right_wall_cubby_width(),height=window_jamb_opening_height(),
+                    first_tile_width=tile_width()-(tile_width()+grout_width())*(w-floor(w))+grout_width(),
+                    first_tile_height=window_jamb_opening_height()/2-grout_width()/2,
+                    depth=right_wall_cubby_depth());
+        }
+
         // foot cubby
         translate([window_jamb_opening_right_offset(),-wall_prep_thickness()-foot_cubby_depth(),foot_cubby_height()]) {
             w=(window_jamb_opening_right_offset()-wall_prep_thickness()-back_wall_first_tile_width())/(tile_width()+grout_width());
-            h=(foot_cubby_height()-floor_prep_thickness()-back_wall_first_tile_height())/(tile_height()+grout_width());
-            first_tile_height=true&&window_jamb_opening_height()<=tile_height()?0:tile_height()-(tile_height()+grout_width())*(h-floor(h))+grout_width();
             shower_cubby(width=window_jamb_opening_width(),height=window_jamb_opening_height(),
                     first_tile_width=tile_width()-(tile_width()+grout_width())*(w-floor(w))+grout_width(),
-                    first_tile_height=first_tile_height,
+                    first_tile_height=window_jamb_opening_height()/2-grout_width()/2,
                     depth=foot_cubby_depth());
         }
 
@@ -413,7 +450,14 @@ module shower() {
                 cube([left_wall_knee_rough_width(),knee_rough_thickness(),knee_rough_height()]);
             }
             translate([back_wall_rough_width(),-right_wall_rough_width(),0]) {
-                cube([inches(5.5),right_wall_rough_width(),right_wall_rough_height()]);
+                difference() {
+                    cube([inches(5.5),right_wall_rough_width(),right_wall_rough_height()]);
+                    translate([-feet(1),right_wall_rough_width()-right_wall_cubby_right_offset()-right_wall_cubby_width()-tile_thickness()-wall_prep_thickness(),window_sill_height()-wall_prep_thickness()]) {
+                        right_wall_cubby=[right_wall_cubby_depth()+feet(1),right_wall_cubby_width()+2*(tile_thickness()+wall_prep_thickness()),right_wall_cubby_height()+tile_thickness()+2*wall_prep_thickness()];
+                        echo(right_wall_cubby=right_wall_cubby);
+                        cube(right_wall_cubby);
+                    }
+                }
                 translate([-right_wall_knee_rough_width(),right_wall_rough_width()-left_wall_rough_width(),0]) {
                     cube([right_wall_knee_rough_width(),knee_rough_thickness(),knee_rough_height()]);
                 }
@@ -421,11 +465,25 @@ module shower() {
         }
 
         color([0.66,0.7,1.0],drywall_alpha) union() {
-            translate([0,-left_wall_rough_width()-drywall_thickness(),0]) {
-//                cube([left_wall_knee_rough_width()+wall_prep_thickness()-grout_width(),drywall_thickness(),knee_rough_height()+wall_prep_thickness()-grout_width()]);
+            translate([wall_prep_thickness()-grout_width(),-left_wall_rough_width()-drywall_thickness(),0]) {
+                cube([left_wall_knee_rough_width(),drywall_thickness(),knee_rough_height()+wall_prep_thickness()-grout_width()]);
             }
-            translate([-inches(3.5),-left_wall_rough_width()-drywall_thickness(),0]) {
-//                cube([inches(3.5)+wall_prep_thickness()-grout_width(),drywall_thickness(),left_wall_rough_height()]);
+            translate([-inches(3.5)+drywall_thickness(),-left_wall_rough_width()-drywall_thickness(),0]) {
+                cube([inches(3.5)-drywall_thickness()+wall_prep_thickness()-grout_width(),drywall_thickness(),left_wall_rough_height()]);
+            }
+            translate([-inches(3.5),-left_wall_rough_width()-feet(1),0]) {
+                cube([drywall_thickness(),feet(1),left_wall_rough_height()]);
+            }
+
+            translate([back_wall_rough_width()-right_wall_knee_rough_width()-wall_prep_thickness()+grout_width(),-left_wall_rough_width()-drywall_thickness(),0]) {
+                cube([right_wall_knee_rough_width()+wall_prep_thickness()-grout_width()-drywall_thickness(),drywall_thickness(),knee_rough_height()+wall_prep_thickness()-grout_width()]);
+            }
+
+            translate([back_wall_rough_width()-drywall_thickness(),-right_wall_rough_width(),0]) {
+                cube([drywall_thickness(),right_wall_rough_width()-left_wall_rough_width(),right_wall_rough_height()]);
+                translate([0,-drywall_thickness(),0]) {
+                    cube([inches(5.5)+2*drywall_thickness(),drywall_thickness(),right_wall_rough_height()]);
+                }
             }
 
 /*

@@ -19,7 +19,7 @@ module position_main_deck() {
     position_lot() {
         translate( building_area_northeast_corner()) {
             rotate( [ 0, 0, house_orientation_angle()]) {
-                translate( [ -main_deck_x() + feet( 2), -main_deck_y() - feet( 11)]) {
+                translate( [ -main_deck_x() + feet( 0), -main_deck_y() - feet( 0)]) {
                     children();
                 }
             }
