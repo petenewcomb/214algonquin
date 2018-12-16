@@ -12,7 +12,6 @@ function feet(ft,in=0) = inches(ft*12+in);
 function inches(in) = in;
 
 function max_tilt_offset() = 3;
-function horizontal_resolution() = inches(1);
 function vertical_resolution() = horizontal_resolution();
 function max_gap() = inches(3+3/8);
 function railing_height() = inches(38);
@@ -38,6 +37,7 @@ function v_sum(v, start=0, end=undef, sum=0) =
         ? sum
         : v_sum(v, start + 1, end, sum+(start<0||start>=len(v)?0:v[start]));
 function v_std(v,avg=undef) = len(v) <= 1 ? 0 : let(a=avg!=undef?avg:v_avg(v)) sqrt(v_sum([for (x=v) let(d=x-a) d*d])/(len(v)-1));
+function v_normstd(v,avg=undef) = len(v) <= 1 ? 0 : let(a=avg!=undef?avg:v_avg(v)) v_std(v,a)/a;
 function v_avg(v) = len(v) == 0 ? 0 : v_sum(v)/len(v);
 function v_max(v, i=0, m=undef) = i >= len(v) ? m : v_max(v, i+1, m==undef?v[i]:max(v[i], m));
 function v_set(v,i,x) = [for (j=[0:len(v)-1]) j==i?x:v[j]];
@@ -102,35 +102,23 @@ function balusters_max_spacing(b) = balusters_max_gap(b)+baluster_diameter();
 
 function balusters_new(hspan, vspan, hres=horizontal_resolution(), vres=vertical_resolution(), max_tilt_offset=max_tilt_offset(), max_gap=max_gap(), initial_seed=undef, next_seed=undef) =
         let(is=initial_seed!=undef?initial_seed:floor(rands(0,1000000,1)[0]),
-            ns=next_seed!=undef?next_seed:rv(1,is)[0],
-            slots=floor(hspan/hres), // leaves at least hres/2 for margins
-            empty_map = [for (i=[0:slots-1]) undef])
-        [hspan, vspan, hres, vres, max_tilt_offset, max_gap, is, ns, [], empty_map, empty_map];
+            ns=next_seed!=undef?next_seed:rv(1,is)[0])
+        balusters_load([hspan, vspan, hres, vres, max_tilt_offset, max_gap, is, ns, []]);
 
-function balusters_dump(b) = [
-        balusters_hspan(b),
-        balusters_vspan(b),
-        balusters_hres(b),
-        balusters_vres(b),
-        balusters_max_tilt_offset(b),
-        balusters_max_gap(b),
-        balusters_initial_seed(b),
-        balusters_next_seed(b),
-        [for (r=vquicksort(0,balusters_rods(b))) [r[0]+1, r[1]+1]]];
+function balusters_dump(b) = [for (i=[0:len(b)-3]) b[i]];
 
-function balusters_load(b) = balusters_load_recur(
-        balusters_new(
-                hspan=balusters_hspan(b),
-                vspan=balusters_vspan(b),
-                hres=balusters_hres(b),
-                vres=balusters_vres(b),
-                max_tilt_offset=balusters_max_tilt_offset(b),
-                max_gap=balusters_max_gap(b),
-                initial_seed=balusters_initial_seed(b),
-                next_seed=balusters_next_seed(b)),
-        balusters_rods(b));
-function balusters_load_recur(b, rods, i=0) =
-        i>=len(rods) ? b : balusters_load_recur(balusters_add(b, balusters_next_seed(b), [for (s=rods[i]) s-1]), rods, i+1);
+function build_map(n, rods, k, i=0, j=0, m=[]) =
+        let(r = rods[j],
+            match = r[k] == i)
+        i >= n ? m : build_map(n, rods, k, i+1, match ? j+1 : j, concat(m, [match ? r[2] : undef]));
+
+function balusters_load(b, next_seed=undef, rods=undef) =
+        let(slots = floor(balusters_hspan(b)/balusters_hres(b)), // leaves at least hres/2 for margins
+            erods = rods != undef ? vquicksort(0, rods) : balusters_rods(b))
+        concat([for (i=[0:6]) b[i]],
+               [next_seed != undef ? next_seed : balusters_next_seed(b),
+                erods],
+               [for (i=[0,1]) build_map(slots, vquicksort(i, [for (j=[0:len(erods)-1]) concat(erods[j],j)]), i)]);
 
 function balusters_margin(b) =
         let(hspan = balusters_hspan(b),
@@ -144,37 +132,18 @@ function balusters_check_rod(b, rod) =
         tests[0] && tests[1];
 
 function balusters_add(b, next_seed, rod) =
-        let(rods=balusters_rods(b))
-        concat([balusters_hspan(b),
-                balusters_vspan(b),
-                balusters_hres(b),
-                balusters_vres(b),
-                balusters_max_tilt_offset(b),
-                balusters_max_gap(b),
-                balusters_initial_seed(b),
-                next_seed,
-                concat(rods,[rod])],
-               let(maps=balusters_maps(b),
-                   l=len(rods))
-               [for (i=[0,1]) v_set(maps[i],rod[i],len(rods))]);
+        balusters_load(b, next_seed=next_seed, rods=concat(balusters_rods(b), [rod]));
 
 function balusters_remove(b, next_seed, rod) =
-//        let(_f=_func("balusters_remove",["b",b,"next_seed",next_seed,"rod",rod]))
-        concat([balusters_hspan(b),
-                balusters_vspan(b),
-                balusters_hres(b),
-                balusters_vres(b),
-                balusters_max_tilt_offset(b),
-                balusters_max_gap(b),
-                balusters_initial_seed(b),
-                next_seed,
-                [for (r=balusters_rods(b)) if (r!=rod) r]],
-               (let(maps=balusters_maps(b))
-                [for (i=[0,1]) v_set(maps[i],rod[i],undef)]));
+        balusters_load(b, next_seed=next_seed, rods=[for (r=balusters_rods(b)) if (r!=rod) r]);
+
+function balusters_remove_all(b, next_seed_rod_v, i=0) = // TODO: make this a join-style filter
+        i >= len(next_seed_rod_v) ? b :
+        balusters_remove_all(balusters_remove(b, next_seed_rod_v[i][0], next_seed_rod_v[i][1]), next_seed_rod_v, i+1);
 
 // Vector of crossings at each level dictated by vres, as vectors of [x, y, rod_index] in ascending order of x position.
 function balusters_crossings(b, diameter=baluster_diameter(), i=0, result=[]) =
-        let(//_f=(i==0?_func("balusters_crossings",["b",b,"diameter",diameter,"i",i,"result",result]):0),
+        let(//_f=(i==0?_func("balusters_crossings",["b",balusters_dump(b),"diameter",diameter,"i",i,"result",result]):0),
             vspan = balusters_vspan(b),
             vres = balusters_vres(b),
             n = round(vspan/vres),
@@ -220,9 +189,29 @@ function aggregate_vgaps(v, min_gap=0, i=0, result=[]) =
 
 // Gaps in a set of balusters, as a vector of vertical columns of [[[min_x, max_x, min_y], ... [min_x, max_x, max_y]], [min_rod_index, max_rod_index]]
 function balusters_aggregate_vgaps(b, diameter=baluster_diameter(), min_gap=undef) =
-        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b))
+        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b),
+            vres = balusters_vres(b))
         [for (vg=balusters_vgaps(b, diameter=diameter))
-                [for (ag=aggregate_vgaps(vg, min_gap=emin_gap)) if ((ag[0][len(ag[0])-1][2]-ag[0][0][2])>emin_gap) ag]];
+                [for (ag=aggregate_vgaps(vg, min_gap=emin_gap)) let(yg=ag[0][len(ag[0])-1][2]-ag[0][0][2]) if (vres*ceil(yg/vres)>=emin_gap/2) ag]];
+
+// Aggregates vgaps in a vertical column into a vector of [[min_x, max_x, min_y], ... [min_x, max_x, max_y]], separated by intersections
+function aggregate_gaps(v, i=0, result=[]) =
+        i >= len(v)
+        ? result
+        : aggregate_gaps(v, i+1,
+                let(n = v[i],
+                    pr = i==0 ? undef : v[i-1][1],
+                    nr = n[1])
+                   pr == undef || (pr[0] == nr[1] && pr[1] == nr[0]) // new or intersection
+                   ? concat(result, [n[0]])
+                   : v_set(result, len(result)-1, concat(result[len(result)-1], n[0])));
+
+// Gaps in a set of balusters, as a vector of vertical columns of [[min_x, max_x, min_y], ... [min_x, max_x, max_y]], separated by intersections
+function balusters_aggregate_gaps(b, diameter=baluster_diameter(), min_gap=undef) =
+        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b),
+            vres = balusters_vres(b))
+        [for (vg=balusters_vgaps(b, diameter=diameter))
+                [for (ag=aggregate_gaps(aggregate_vgaps(vg, min_gap=emin_gap))) let(yg=ag[len(ag[0])-1][2]-ag[0][2]) if (vres*ceil(yg/vres)>=emin_gap/2) ag]];
 
 // Gaps in a set of balusters, as a vector of [area, [[min_x, max_x, min_y], ... [min_x, max_x, max_y]], [min_rod_index, max_rod_index]]
 function balusters_gaps(b, diameter=baluster_diameter(), min_gap=undef, i=0, result=[]) =
@@ -230,9 +219,10 @@ function balusters_gaps(b, diameter=baluster_diameter(), min_gap=undef, i=0, res
         [for (avg=balusters_aggregate_vgaps(b, diameter=diameter, min_gap=min_gap))
                 for (ag=avg) concat([v_sum([for (g=ag[0]) (g[1]-g[0])*vres])], ag)];
 
-function fill_smallest_gap(b, gaps) =
-        let(_f=_func("fill_smallest_gap",["b",b]),
-            gap = gaps[0],
+function fill_gap(b, gaps, removed_rod=undef) =
+        let(_f=_func("fill_gap",["b",balusters_dump(b)]),
+            gap = gaps[0], // smallest gap
+//            gap = gaps[len(gaps)-1], // largest gap
             rv = rv(5,balusters_next_seed(b)),
             hres = balusters_hres(b),
             vspan = balusters_vspan(b),
@@ -247,17 +237,17 @@ function fill_smallest_gap(b, gaps) =
             tilt_offset_slopes = [for (to=[-max_tilt_offset:max_tilt_offset]) if (to!=0) [to, to*hres/vspan]],
             tilt_offset_bottom_intercepts = [for (tos=tilt_offset_slopes) [tos[0], gap_x-gap_y*tos[1]]],
             candidate_rods = [for (tobi=tilt_offset_bottom_intercepts) let(bottom_slot=round((tobi[1]-margin)/hres)) [bottom_slot, bottom_slot+tobi[0]]],
-            valid_rods = [for (cr=candidate_rods) if (balusters_check_rod(b, cr)) cr],
+            valid_rods = [for (cr=candidate_rods) if (cr != removed_rod && balusters_check_rod(b, cr)) cr],
             rrv = rv(len(valid_rods),seed=rv[0]),
             candidates = len(valid_rods) == 0 ? [] : [for (i=[0:len(valid_rods)-1]) balusters_add(b, rrv[i], valid_rods[i])],
             scored_candidates = vquicksort(0, [for (c=randomize(candidates,rv[1])) [balusters_score(c), c]]))
         len(scored_candidates) == 0 ? undef : randomize([for (i=[0:min(len(scored_candidates),1)]) scored_candidates[i][1]],rv[2])[0];
 
-function remove_rod(b) =
-        let(_f=_func("remove_rod",["b",b]),
-            rv = rv(2,balusters_next_seed(b)),
+function remove_rods(b) =
+        let(_f=_func("remove_rods",["b",balusters_dump(b)]),
+            rv = rv(3,balusters_next_seed(b)),
             rods = balusters_rods(b),
-            candidate_rods = let(rr=randomize(rods,rv[0])) [for (i=[0:min(len(rr),5)-1]) rr[i]], // TODO: be targeted about selecting candidates
+            candidate_rods = rods,//let(rr=randomize(rods,rv[0])) [for (i=[0:min(len(rr),10)-1]) rr[i]], // TODO: be targeted about selecting candidates
             rrv = rv(len(candidate_rods),seed=rv[1]),
 //            lookahead = 0,
             candidates = [
@@ -265,12 +255,14 @@ function remove_rod(b) =
                         let(b2=balusters_remove(b, rrv[i], candidate_rods[i]),
                             gaps=vquicksort(0,balusters_gaps(b2)),
                             b3 = (len(gaps)==0 ? b2
-                                  : fill_smallest_gap(b2, gaps)))
-                                b3 != undef ? b3 : b2])
-        vquicksort(0, [for (c=candidates) [balusters_score(c), c]])[0][1];
+                                  : fill_gap(b2, gaps, removed_rod=candidate_rods[i])))
+                                [b3 != undef ? b3 : b2, candidate_rods[i]]])
+        let(scv = vquicksort(0, [for (c=candidates) [balusters_score(c[0]), c[1]]]),
+            rrv2 = rv(len(scv),seed=rv[2]))
+        balusters_remove_all(b, [for (i=[0:min(len(scv),3)-1]) [rrv2[i], scv[i][1]]]);
 
 function fill_gaps(b) =
-        let(_f=_func("fill_gaps",["b",b]),
+        let(_f=_func("fill_gaps",["b",balusters_dump(b)]),
             gaps = vquicksort(0,balusters_gaps(b)),
             score = _value("score",balusters_score(b)),
             len_gaps = _value("len(gaps)",len(gaps)),
@@ -283,12 +275,12 @@ function fill_gaps(b) =
             margin = balusters_margin(b),
             max_balusters = round(2*hspan/(max_gap+diameter)) - 1,
             fill = _value("fill",len(rods)/max_balusters),
-            b2 = len(gaps) == 0 && score <= 0 ? b : (len(rods) < max_balusters ? (let(b3=fill_smallest_gap(b, gaps)) b3 != undef ? b3 : remove_rod(b)) : remove_rod(b)))
+            b2 = len(gaps) == 0 && score <= 0 ? b : (len(rods) < max_balusters ? (let(b3=fill_gap(b, gaps)) b3 != undef ? b3 : remove_rods(b)) : remove_rods(b)))
         b2 == b ? b : fill_gaps(b2);
 
 /*
 function fill_largest_gap(b) =
-        let(_f=_func("fill_gaps",["b", b, "gaps", gaps]),
+        let(_f=_func("fill_gaps",["b",balusters_dump(b), "gaps", gaps]),
             gaps = _value("gaps",balusters_gaps(b)),
             rv = rv(5,balusters_next_seed(b)),
             rods = balusters_rods(b),
@@ -318,7 +310,7 @@ function fill_largest_gap(b) =
         : _value("next",fill_gaps(
                 (len(rods) >= max_balusters || len(valid_rods) == 0
                  // backtrack by removing a rod
-                 ? remove_rod(b, seed=rv[0], depth=depth+1)
+                 ? remove_rods(b, seed=rv[0], depth=depth+1)
                  // add a rod to fill the largest gap
                  : vquicksort(0,candidates)[0]),
                 maxdepth=maxdepth-1,
@@ -363,12 +355,14 @@ module balusters_report(b) {
         echo(rod_tilt=o,rod_count=rod_count,rod_length=rod_length); //str(rod_length_inches,rod_lengths_eights>0?str(rod_lengths_eights,"/8"):""));
     }
 
+    echo(score=balusters_score(b));
+
     score_terms = balusters_score(b, debug=true);
     for (i=[0:2:len(score_terms)-1]) {
         echo("score:",name=score_terms[i],value=score_terms[i+1]);
     }
 
-    gaps = balusters_gaps(b);
+    gaps = vquicksort(0, [for (avg=balusters_aggregate_vgaps(b, min_gap=0)) for (ag=avg) let(sg=vquicksort(0, [for (g=ag[0],bot=ag[0][0][2],top=ag[0][len(ag[0])-1][2]) if ((bot+max_gap/2) <= g[2] && g[2] <= (top-max_gap/2)) [g[1]-g[0], (g[0]+g[1])/2, g[2]]])) sg[len(sg)-1]]);
     if (len(gaps) > 0) {
         for (g=[for (i=[max(0,len(gaps)-5):len(gaps)-1]) gaps[i]]) {
             echo(g=g);
@@ -408,13 +402,31 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
         }
     }
 
-    if (show_gaps) {
-        gaps = vquicksort(0,balusters_gaps(b));
+    if (show_gaps||true) {
+        avgaps = balusters_aggregate_vgaps(b);
+        for (avg = avgaps) {
+            for (ag = avg) {
+                rotate([90,0,0]) {
+                    translate([0,0,-baluster_diameter()/2]) {
+                        color("green", 0.5) {
+                            linear_extrude(baluster_diameter()) {
+                                polygon(concat([for (g=ag[0]) [g[0],g[2]]],
+                                               [for (i=[len(ag[0])-1:-1:0]) let(g=ag[0][i]) [g[1],g[2]]]));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        echo(gap_count=len(balusters_gaps(b)));
+        gaps = vquicksort(0, [for (avg=avgaps) for (ag=avg) let( sg=vquicksort(0, [for (g=ag[0]) if ((max_gap/2) <= g[2] && g[2] <= (vspan-max_gap/2)) [g[1]-g[0], (g[0]+g[1])/2, g[2]]]))
+                                                                    sg[len(sg)-1]]);
         if (len(gaps) > 0) {
             for (g=[for (i=[max(0,len(gaps)-5):len(gaps)-1]) gaps[i]]) {
                 if (g[0]>max_gap) {
                     translate([g[1],0,g[2]]) {
-                        color(g[0]>max_gap?"red":"black",0.3) sphere(r=inches(2),$fn=30);
+                        color(g[0]>max_gap?"red":"black",0.3) sphere(d=inches(4/*max_gap*/),$fn=30);
                     }
                 }
             }
@@ -422,7 +434,7 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
     }
 }
 
-module railing(b) {
+module railing(b,show_gaps=false) {
     hres = balusters_hres(b);
     margin = balusters_margin(b);
     hspan = balusters_hspan(b);
@@ -432,7 +444,7 @@ module railing(b) {
     rods = balusters_rods(b);
 
     translate([0, 0, bottom_rail_height()]) {
-        balusters(b,show_gaps=true);
+        balusters(b,show_gaps=show_gaps);
     }
 
     // top rail
@@ -457,21 +469,26 @@ module railing(b) {
 }
 
 function balusters_score(b,debug=false) =
-        let(//_f=_func("balusters_score",["b",b,"debug",debug]),
+        let(//_f=_func("balusters_score",["b",balusters_dump(b),"debug",debug]),
             gaps = balusters_gaps(b, diameter=0, min_gap=0),
             hgaps = balusters_hgaps(b, diameter=0),
+            vgaps = balusters_vgaps(b, diameter=0),
+            agaps = balusters_aggregate_gaps(b, diameter=0, min_gap=0),
             avgaps = balusters_aggregate_vgaps(b, diameter=0, min_gap=0),
             vres = balusters_vres(b),
             rods = balusters_rods(b),
             bias = len(rods)==0?0:v_sum([for (r=rods) r[1]-r[0]])/len(rods),
             hspan = balusters_hspan(b),
             hres = balusters_hres(b),
-            max_gap = balusters_max_gap(b),
+            max_spacing = balusters_max_gap(b) + baluster_diameter(),
             max_tilt_offset = balusters_max_tilt_offset(b),
             vspan = balusters_vspan(b),
             maps = balusters_maps(b),
-            intersections = [for (avg=avgaps) if (len(avg)>1) for (t=tuples(2,avg)) if (t[1][1][0]==t[0][1][1]&&t[1][1][1]==t[0][1][0]) let(a=t[0][0][len(t[0][0])-1],b=t[1][0][0]) [((a[1]+a[0])/2+(b[1]+b[0])/2)/2, (a[2]+b[2])/2]],
+            intersections = [for (ag=agaps) if (len(ag)>1) for (t=tuples(2,ag)) let(a=t[0][len(t[0])-1],b=t[1][0]) [((a[1]+a[0])/2+(b[1]+b[0])/2)/2, (a[2]+b[2])/2]],
             intersection_height_histogram = [for (g=vgroupby(1,vquicksort(1,intersections))) [g[0][1], len(g)]],
+            rod_tilts = [for (i=[0,1]) let(m=maps[i],j=abs(i-1)) [for (s=m) if (s!=undef) let(r=rods[s]) r[j]-r[i]]],
+            rod_tilt_deltas = [for (rt=rod_tilts) [for (p=tuples(2,rt)) p[1]-p[0]]],
+            rod_tilt_trends = [for (rtd=rod_tilt_deltas) v_sum([for (p=tuples(2,rtd)) p[1]==p[0] ? 1 : (sign(p[1])==sign(p[0]) ? 0.1 : 0)])],
             rod_tilt_histogram = [for (g=vgroupby(0,vquicksort(0,[for (r=rods) [r[1]-r[0], r]]))) [g[0][0], len(g)]],
             intersection_hgaps = [for (t=tuples(2,concat([0],[for (i=intersections) i[0]],[hspan]))) t[1]-t[0]],
             intersection_vgaps = [for (t=tuples(2,intersections)) t[1][1]-t[0][1]],
@@ -479,17 +496,26 @@ function balusters_score(b,debug=false) =
             intersection_valign_count = v_sum([for (ivg=intersection_vgaps) if(abs(ivg)<=2*vres) 1]),
             intersection_vtrend_count = v_sum([for (ivgd=intersection_vgap_deltas) if(abs(ivgd)<=2*vres) 1]),
             terms=[
-//                    "consistent_gap_area", v_std([for (g=gaps) g[0]/(vspan*max_gap)]),
-                    "avoid_parallel_runs", v_avg([for (g=gaps) v_sum([for (t=tuples(2,g[1])) max(0,(hres*vres/vspan)-abs((t[1][1]-t[1][0])-(t[0][1]-t[0][0])))])]),
-                    "intersections_per_gap", 2*v_std([for (avg=avgaps) len(avg)],2.5),
-                    "intersection_height_histogram", debug ? intersection_height_histogram : 0,
-                    "rod_tilt_histogram", debug ? rod_tilt_histogram : 0,
-                    "rod_tilt_diversity", let(offsets=2*max_tilt_offset) (offsets-len(rod_tilt_histogram))*len(rods)/offsets+v_std([for (b=rod_tilt_histogram) b[1]]),
-                    "std_intersection_hgaps", v_std(intersection_hgaps)/max_gap,
+//                    "consistent_gap_area", v_std([for (g=gaps) g[0]/(vspan*max_spacing)]),
+                    "avoid_parallel_runs", let(prv=[for (avg=avgaps) for (ag=avg) let(ab=ag[1],a=rods[ab[0]],b=rods[ab[1]],at=a[1]-a[0],bt=b[1]-b[0]) if (a!=undef && b!=undef && at == bt) let(x=len(ag[0])/len(hgaps),sx=squash(0.5,x)) [sx, x]], x=v_sum([for (pr=prv) pr[0]]), sx=x) debug ? [sx, x, prv] : sx,
+//                    "intersections", debug ? intersections : 0,
+//                    "intersection_height_histogram", debug ? intersection_height_histogram : 0,
+//                    "rod_tilt_histogram", debug ? rod_tilt_histogram : 0,
+                    "rod_tilt_diversity", let(offsets=2*max_tilt_offset,x=(offsets-len(rod_tilt_histogram))*len(rods)/offsets+v_std([for (b=rod_tilt_histogram) b[1]]), sx=squash(0.5,x)) debug ? [sx, x, offsets, len(rod_tilt_histogram), rod_tilt_histogram] : sx,
+//                    "avoid_bias", abs(bias),
+                    "std_hgaps", let(a=max_spacing*3/5, v=[for (vg=vgaps) v_avg([for (g=vg) g[0][1]-g[0][0]])/a], x=v_std(v,1), sx=10*squash(0.1,x)) debug ? [sx, x, a, v] : sx,
+//                    "std_hgaps", 10*squashed_normstd(1,[for (t=tuples(2,[for (vg=vgaps) v_sum([for (g=vg) g[0][1]-g[0][0]])])) v_sum(t)]),
+                    "std_intersection_hgaps", let(a=1/len(intersection_hgaps),x=v_normstd(intersection_hgaps),sx=10*squash(a,x)) debug ? [sx, x, intersection_hgaps] : sx,
                     "intersection_valign_count", intersection_valign_count,
                     "intersection_vtrend_count", intersection_vtrend_count,
+                    "rod_tilt_trends", let(x=v_sum(rod_tilt_trends),sx=squash(0.5,x)) debug ? [sx, x, rod_tilts, rod_tilt_deltas, rod_tilt_trends] : sx,
                     "dummy", 0])
-        debug ? [for (i=[0:len(terms)-3]) terms[i]] : v_sum([for (i=[1:2:len(terms)-3]) terms[i]]) - 2;
+        debug ? [for (i=[0:len(terms)-3]) terms[i]] : v_sum([for (i=[1:2:len(terms)-3]) terms[i]]);
+
+e=exp(1);
+
+function squash(t,x) = let(y=log(1+exp((x-1)*2*e))) t==0 ? y : y-squash(t=0,x=t);
+function squashed_normstd(a,v) = squash(a/len(v), v_normstd(v));
 
 function countzeros(v, threshold=0, i=0, count=0, maxcount=0) =
         i >= len(v) ? maxcount
@@ -697,21 +723,230 @@ function gcd(a,b)=
 
 //railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.375, 270062, 0.527213, [[4, 1], [5, 8], [6, 3], [7, 10], [10, 12], [14, 15], [17, 14], [21, 19], [22, 25], [24, 22], [25, 26], [28, 27], [29, 31], [33, 36], [38, 35], [39, 38], [40, 41], [44, 46], [47, 49], [50, 48], [51, 54], [53, 55], [57, 60], [58, 57], [62, 63], [65, 67], [67, 65], [68, 71], [73, 72], [76, 73], [79, 76], [83, 81], [84, 85], [85, 88], [88, 86], [92, 91], [94, 93], [95, 97], [99, 96], [100, 102], [101, 99], [104, 103], [107, 108], [110, 107], [113, 114], [114, 112], [117, 116], [119, 120]]]);
 
+
+
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.375, 132969, 0.0848588, [[2, 3], [4, 7], [8, 5], [9, 8], [12, 14], [13, 10], [16, 13], [18, 17], [20, 21], [24, 22], [26, 28], [27, 25], [29, 30], [30, 32], [33, 36], [36, 34], [38, 37], [40, 43], [42, 39], [45, 44], [47, 48], [48, 45], [49, 51], [52, 53], [55, 52], [57, 60], [58, 56], [61, 62], [65, 64], [67, 69], [69, 67], [71, 72], [73, 75], [75, 74], [78, 76], [80, 82], [81, 78], [83, 86], [85, 83], [86, 89], [88, 91], [91, 90]]]);
+/*
+ECHO: hspan = 92.75
+ECHO: vspan = 31.5
+ECHO: hres = 1
+ECHO: vres = 1
+ECHO: max_tilt_offset = 3
+ECHO: initial_seed = 132969
+ECHO: next_seed = 0.0848588
+ECHO: max_gap = 3.375
+ECHO: max_tilt = 5.44033
+ECHO: margin = 0.875
+ECHO: max_spacing = 3.75
+ECHO: rods = 42
+ECHO: slots = [92, 92]
+ECHO: lengths = [92.75, 92.75]
+ECHO: rod_tilt = 1, rod_count = 14, rod_length = 33.0151
+ECHO: rod_tilt = 2, rod_count = 14, rod_length = 33.0606
+ECHO: rod_tilt = 3, rod_count = 14, rod_length = 33.1361
+ECHO: "score:", name = "avoid_parallel_runs", value = 0.0309816
+ECHO: "score:", name = "intersections_per_gap", value = 1.40577
+ECHO: "score:", name = "intersection_height_histogram", value = [[6.39844, 3], [7.875, 2], [10.3359, 1], [12.3047, 1], [15.75, 1], [19.1953, 1], [21.1641, 2], [23.625, 2], [25.1016, 1]]
+ECHO: "score:", name = "rod_tilt_histogram", value = [[-3, 7], [-2, 7], [-1, 7], [1, 7], [2, 7], [3, 7]]
+ECHO: "score:", name = "rod_tilt_diversity", value = 0
+ECHO: "score:", name = "std_intersection_hgaps", value = 0.841637
+ECHO: "score:", name = "intersection_valign_count", value = 0
+ECHO: "score:", name = "intersection_vtrend_count", value = 0
+*/
+
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.375, 132969, 0.543144, [[2, 3], [4, 7], [8, 5], [9, 8], [12, 14], [13, 10], [16, 13], [18, 17], [20, 21], [24, 22], [26, 28], [27, 25], [29, 30], [30, 32], [32, 35], [36, 34], [38, 37], [40, 43], [42, 39], [45, 44], [47, 48], [48, 45], [49, 51], [52, 53], [55, 52], [57, 60], [58, 56], [61, 62], [65, 64], [67, 69], [69, 67], [71, 72], [73, 75], [75, 74], [78, 76], [80, 82], [81, 78], [83, 86], [85, 83], [86, 89], [88, 91], [91, 90]]]);
+/*
+ECHO: hspan = 92.75
+ECHO: vspan = 31.5
+ECHO: hres = 1
+ECHO: vres = 1
+ECHO: max_tilt_offset = 3
+ECHO: initial_seed = 132969
+ECHO: next_seed = 0.543144
+ECHO: max_gap = 3.375
+ECHO: max_tilt = 5.44033
+ECHO: margin = 0.875
+ECHO: max_spacing = 3.75
+ECHO: rods = 42
+ECHO: slots = [92, 92]
+ECHO: lengths = [92.75, 92.75]
+ECHO: rod_tilt = 1, rod_count = 14, rod_length = 33.0151
+ECHO: rod_tilt = 2, rod_count = 14, rod_length = 33.0606
+ECHO: rod_tilt = 3, rod_count = 14, rod_length = 33.1361
+ECHO: "score:", name = "avoid_parallel_runs", value = 0.0310399
+ECHO: "score:", name = "intersections_per_gap", value = 1.40577
+ECHO: "score:", name = "intersection_height_histogram", value = [[6.39844, 3], [7.875, 2], [10.3359, 1], [12.3047, 1], [15.75, 1], [21.1641, 2], [23.625, 2], [25.1016, 2]]
+ECHO: "score:", name = "rod_tilt_histogram", value = [[-3, 7], [-2, 7], [-1, 7], [1, 7], [2, 7], [3, 7]]
+ECHO: "score:", name = "rod_tilt_diversity", value = 0
+ECHO: "score:", name = "std_intersection_hgaps", value = 0.836466
+ECHO: "score:", name = "intersection_valign_count", value = 0
+ECHO: "score:", name = "intersection_vtrend_count", value = 0
+*/
+
+//railing = fill_gaps([92.75, 31.5, 1, 1, 3, 3.375, 132969, 0.570304, [[2, 1], [6, 3], [7, 9], [8, 5], [10, 11], [13, 15], [15, 18], [16, 13], [17, 20], [20, 22], [24, 21], [26, 25], [28, 31], [30, 27], [31, 33], [34, 35], [36, 39], [39, 36], [41, 40], [43, 45], [45, 42], [46, 48], [48, 51], [51, 50], [53, 54], [55, 58], [59, 60], [61, 63], [64, 61], [65, 64], [67, 66], [69, 70], [71, 73], [73, 76], [76, 75], [78, 77], [81, 82], [82, 79], [83, 84], [86, 87], [88, 91]], [undef, undef, 0, undef, undef, undef, 1, 2, 3, undef, 4, undef, undef, 5, undef, 6, 7, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, 12, undef, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, 18, undef, 19, undef, 20, 21, undef, 22, undef, undef, 23, undef, 24, undef, 25, undef, undef, undef, 26, undef, 27, undef, undef, 28, 29, undef, 30, undef, 31, undef, 32, undef, 33, undef, undef, 34, undef, 35, undef, undef, 36, 37, 38, undef, undef, 39, undef, 40, undef, undef, undef], [undef, 0, undef, 1, undef, 2, undef, undef, undef, 3, undef, 4, undef, 5, undef, 6, undef, undef, 7, undef, 8, 9, 10, undef, undef, 11, undef, 12, undef, undef, undef, 13, undef, 14, undef, 15, 16, undef, undef, 17, 18, undef, 19, undef, undef, 20, undef, undef, 21, undef, 22, 23, undef, undef, 24, undef, undef, undef, 25, undef, 26, 27, undef, 28, 29, undef, 30, undef, undef, undef, 31, undef, undef, 32, undef, 33, 34, 35, undef, 36, undef, undef, 37, undef, 38, undef, undef, 39, undef, undef, undef, 40]]);
+//echo(remove_rods=remove_rods(b=[92.75, 31.5, 1, 1, 3, 3.375, 132969, 0.570304, [[2, 1], [6, 3], [7, 9], [8, 5], [10, 11], [13, 15], [15, 18], [16, 13], [17, 20], [20, 22], [24, 21], [26, 25], [28, 31], [30, 27], [31, 33], [34, 35], [36, 39], [39, 36], [41, 40], [43, 45], [45, 42], [46, 48], [48, 51], [51, 50], [53, 54], [55, 58], [59, 60], [61, 63], [64, 61], [65, 64], [67, 66], [69, 70], [71, 73], [73, 76], [76, 75], [78, 77], [81, 82], [82, 79], [83, 84], [86, 87], [88, 91]], [undef, undef, 0, undef, undef, undef, 1, 2, 3, undef, 4, undef, undef, 5, undef, 6, 7, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, 12, undef, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, 18, undef, 19, undef, 20, 21, undef, 22, undef, undef, 23, undef, 24, undef, 25, undef, undef, undef, 26, undef, 27, undef, undef, 28, 29, undef, 30, undef, 31, undef, 32, undef, 33, undef, undef, 34, undef, 35, undef, undef, 36, 37, 38, undef, undef, 39, undef, 40, undef, undef, undef], [undef, 0, undef, 1, undef, 2, undef, undef, undef, 3, undef, 4, undef, 5, undef, 6, undef, undef, 7, undef, 8, 9, 10, undef, undef, 11, undef, 12, undef, undef, undef, 13, undef, 14, undef, 15, 16, undef, undef, 17, 18, undef, 19, undef, undef, 20, undef, undef, 21, undef, 22, 23, undef, undef, 24, undef, undef, undef, 25, undef, 26, 27, undef, 28, 29, undef, 30, undef, undef, undef, 31, undef, undef, 32, undef, 33, 34, 35, undef, 36, undef, undef, 37, undef, 38, undef, undef, 39, undef, undef, undef, 40]]));
+
+//railing = fill_gaps(b=[92.75, 31.5, 1, 1, 3, 3.375, 132969, 0.570304, [[2, 1], [6, 3], [7, 9], [8, 5], [10, 11], [13, 15], [15, 18], [16, 13], [17, 20], [20, 22], [24, 21], [26, 25], [28, 31], [30, 27], [31, 33], [34, 35], [36, 39], [39, 36], [41, 40], [43, 45], [45, 42], [46, 48], [48, 51], [51, 50], [53, 54], [55, 58], [59, 60], [61, 63], [64, 61], [65, 64], [67, 66], [69, 70], [71, 73], [73, 76], [76, 75], [78, 77], [81, 82], [82, 79], [83, 84], [86, 87], [88, 91]], [undef, undef, 0, undef, undef, undef, 1, 2, 3, undef, 4, undef, undef, 5, undef, 6, 7, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, 12, undef, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, 18, undef, 19, undef, 20, 21, undef, 22, undef, undef, 23, undef, 24, undef, 25, undef, undef, undef, 26, undef, 27, undef, undef, 28, 29, undef, 30, undef, 31, undef, 32, undef, 33, undef, undef, 34, undef, 35, undef, undef, 36, 37, 38, undef, undef, 39, undef, 40, undef, undef, undef], [undef, 0, undef, 1, undef, 2, undef, undef, undef, 3, undef, 4, undef, 5, undef, 6, undef, undef, 7, undef, 8, 9, 10, undef, undef, 11, undef, 12, undef, undef, undef, 13, undef, 14, undef, 15, 16, undef, undef, 17, 18, undef, 19, undef, undef, 20, undef, undef, 21, undef, 22, 23, undef, undef, 24, undef, undef, undef, 25, undef, 26, 27, undef, 28, 29, undef, 30, undef, undef, undef, 31, undef, undef, 32, undef, 33, 34, 35, undef, 36, undef, undef, 37, undef, 38, undef, undef, 39, undef, undef, undef, 40]]);
+
 initial_seed=undef;
+//initial_seed=86269;
+//initial_seed=132969;
+function horizontal_resolution() = inches(3/4);
 horizontal_span=inches(92+3/4);
 //horizontal_span=inches(30);
 
-railing = fill_gaps(balusters_new(horizontal_span,vertical_span(),initial_seed=initial_seed));
+// that's goo
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.375, 486361, 0.249451, [[1, 3], [4, 1], [6, 4], [8, 7], [10, 11], [12, 15], [15, 12], [17, 16], [18, 20], [21, 18], [23, 21], [24, 25], [26, 29], [30, 28], [32, 30], [33, 34], [36, 38], [39, 36], [40, 39], [42, 44], [43, 41], [44, 47], [48, 45], [50, 48], [51, 52], [53, 56], [56, 55], [58, 57], [60, 61], [62, 64], [65, 62], [67, 66], [68, 69], [70, 71], [71, 73], [74, 76], [78, 77], [79, 82], [80, 79], [81, 84], [84, 83], [88, 85], [89, 90], [90, 87]]]);
+
+//next: "railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.375, 367191, 0.841151, [[4, 1], [7, 6], [10, 11], [14, 17], [16, 13], [17, 20], [22, 23], [27, 26], [29, 31], [32, 35], [35, 34], [38, 37], [40, 42], [44, 43], [45, 47], [48, 45], [51, 49], [55, 53], [57, 58], [60, 57], [63, 60], [64, 67], [65, 63], [69, 70], [72, 75], [77, 76], [80, 81], [83, 85], [86, 83], [87, 90], [89, 87], [91, 93], [95, 96], [100, 99], [105, 103], [109, 106], [112, 111], [114, 116], [117, 120], [120, 118]]]);"
+
+//next: "railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.375, 290834, 0.706056, [[1, 4], [4, 1], [6, 7], [11, 10], [16, 13], [17, 20], [18, 16], [22, 23], [27, 26], [29, 31], [32, 35], [35, 32], [38, 37], [40, 42], [44, 47], [48, 45], [51, 49], [53, 54], [58, 57], [61, 63], [62, 60], [65, 66], [68, 70], [73, 72], [78, 75], [81, 80], [83, 86], [85, 83], [88, 90], [92, 93], [95, 98], [98, 96], [101, 100], [104, 105], [108, 110], [109, 107], [111, 113], [114, 117], [118, 116], [121, 118]]]);"
+
+//next: "railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.375, 929394, 0.989418, [[4, 2], [5, 8], [7, 5], [9, 10], [12, 11], [14, 15], [19, 18], [24, 21], [25, 28], [28, 25], [31, 30], [32, 34], [35, 37], [38, 40], [43, 42], [47, 46], [51, 52], [52, 49], [54, 55], [57, 60], [59, 57], [60, 63], [65, 66], [70, 69], [72, 74], [76, 77], [81, 80], [86, 83], [87, 90], [90, 88], [93, 91], [95, 97], [96, 94], [100, 101], [103, 106], [106, 103], [107, 109], [110, 113], [114, 111], [117, 114], [118, 120], [119, 117]]]);"
+
+
+//railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.25, 772837, 0.442213, [[3, 2], [6, 7], [8, 11], [12, 10], [13, 16], [16, 13], [17, 20], [21, 19], [23, 24], [26, 28], [31, 30], [34, 35], [37, 39], [42, 41], [45, 42], [46, 49], [48, 45], [50, 51], [55, 54], [57, 59], [60, 63], [65, 66], [67, 69], [70, 72], [71, 68], [72, 75], [76, 78], [81, 80], [84, 85], [87, 86], [90, 87], [93, 91], [95, 97], [97, 94], [101, 100], [103, 106], [106, 104], [109, 107], [111, 112], [114, 117], [117, 114], [120, 118], [122, 120]]]);
+
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.25, 438906, 0.199882, [[1, 2], [3, 6], [5, 4], [7, 8], [10, 9], [11, 14], [12, 11], [14, 16], [17, 18], [20, 17], [21, 24], [22, 19], [23, 21], [25, 26], [28, 29], [30, 33], [33, 31], [34, 35], [37, 34], [39, 36], [40, 42], [41, 39], [42, 44], [45, 43], [47, 45], [50, 48], [52, 51], [53, 56], [55, 53], [57, 58], [58, 61], [61, 60], [62, 64], [65, 62], [66, 68], [67, 66], [68, 71], [71, 70], [72, 74], [73, 72], [75, 76], [79, 77], [81, 84], [82, 79], [84, 81], [85, 87], [87, 89], [89, 90], [91, 88]]]);
+
+//ECHO: "railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.25, 320105, 0.527957, [[1, 2], [2, 4], [3, 0], [4, 6], [6, 8], [7, 10], [9, 11], [12, 9], [15, 13], [18, 16], [21, 18], [23, 24], [24, 21], [25, 26], [27, 30], [29, 28], [30, 33], [32, 31], [34, 35], [36, 34], [38, 37], [40, 41], [42, 39], [45, 42], [47, 45], [48, 51], [49, 48], [50, 53], [53, 50], [55, 54], [57, 58], [59, 56], [62, 60], [63, 64], [65, 67], [68, 70], [72, 71], [74, 75], [75, 73], [76, 79], [78, 77], [80, 78], [81, 83], [82, 80], [83, 86], [86, 88], [90, 89]]]);"
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 200390, 0.606152, [[4, 1], [5, 4], [6, 8], [9, 12], [14, 15], [17, 20], [20, 19], [23, 21], [26, 27], [27, 24], [29, 31], [34, 33], [35, 38], [40, 41], [44, 47], [47, 44], [50, 48], [55, 52], [58, 57], [60, 63], [62, 60], [64, 66], [69, 68], [71, 74], [75, 72], [76, 78], [79, 76], [82, 80], [86, 83], [87, 86], [88, 90], [92, 93], [96, 99], [98, 96], [100, 102], [104, 105], [108, 110], [109, 107], [110, 113], [115, 116], [118, 120], [121, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 200390, 0.751664, [[4, 1], [5, 4], [6, 8], [9, 12], [14, 15], [17, 20], [20, 19], [23, 21], [26, 27], [27, 24], [29, 31], [34, 33], [35, 38], [40, 41], [44, 47], [47, 44], [50, 48], [55, 52], [58, 57], [60, 63], [62, 60], [64, 66], [69, 68], [71, 74], [75, 72], [76, 78], [79, 76], [82, 80], [83, 84], [87, 86], [88, 90], [92, 93], [96, 99], [98, 96], [100, 102], [104, 105], [108, 110], [109, 107], [110, 113], [115, 116], [118, 120], [121, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 200390, 0.715534, [[4, 1], [5, 4], [8, 6], [9, 12], [12, 10], [14, 15], [17, 20], [20, 19], [23, 21], [26, 27], [27, 24], [29, 31], [34, 33], [35, 38], [40, 41], [44, 47], [47, 44], [50, 48], [55, 52], [58, 57], [60, 63], [62, 60], [64, 66], [69, 68], [71, 74], [75, 72], [76, 78], [79, 76], [82, 80], [83, 84], [87, 86], [88, 90], [92, 93], [96, 99], [98, 96], [100, 102], [104, 105], [108, 110], [109, 107], [110, 113], [115, 116], [118, 120], [121, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 200390, 0.557513, [[4, 1], [5, 4], [8, 6], [9, 12], [12, 10], [14, 15], [17, 20], [20, 19], [23, 21], [26, 27], [27, 24], [29, 31], [34, 33], [35, 38], [40, 41], [44, 47], [47, 44], [50, 49], [55, 52], [58, 57], [60, 63], [62, 60], [64, 66], [69, 68], [71, 74], [75, 72], [76, 78], [79, 76], [82, 80], [83, 84], [87, 86], [88, 90], [92, 93], [96, 99], [98, 96], [100, 102], [104, 105], [108, 110], [109, 107], [110, 113], [115, 116], [118, 120], [121, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 200390, 0.366764, [[4, 1], [5, 4], [8, 6], [9, 12], [12, 10], [14, 15], [17, 20], [20, 19], [23, 21], [26, 27], [27, 24], [29, 31], [34, 33], [35, 38], [40, 41], [43, 46], [47, 44], [50, 49], [55, 52], [58, 57], [60, 63], [62, 60], [64, 66], [69, 68], [71, 74], [75, 72], [76, 78], [79, 76], [82, 80], [83, 84], [87, 86], [88, 90], [92, 93], [96, 99], [98, 96], [100, 102], [104, 105], [108, 110], [109, 107], [110, 113], [115, 116], [118, 120], [121, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 618961, 0.106516, [[1, 3], [4, 5], [6, 9], [9, 6], [11, 13], [15, 16], [19, 17], [21, 24], [23, 20], [26, 27], [30, 33], [31, 30], [33, 36], [37, 35], [40, 37], [43, 42], [47, 45], [51, 50], [53, 55], [57, 58], [60, 63], [65, 66], [69, 71], [71, 68], [73, 74], [77, 76], [79, 81], [83, 86], [86, 84], [89, 88], [91, 93], [95, 98], [100, 101], [103, 104], [106, 103], [109, 107], [113, 110], [116, 115], [120, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 618961, 0.942657, [[1, 3], [4, 5], [6, 9], [9, 6], [11, 13], [15, 16], [19, 17], [21, 24], [23, 20], [26, 29], [30, 33], [31, 30], [33, 36], [37, 35], [40, 37], [43, 42], [47, 45], [51, 50], [53, 55], [57, 58], [60, 63], [65, 66], [69, 71], [71, 68], [73, 74], [77, 76], [79, 81], [83, 86], [86, 84], [89, 88], [93, 90], [96, 93], [99, 97], [100, 101], [103, 104], [106, 103], [109, 107], [113, 110], [116, 115], [120, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 618961, 0.231441, [[1, 3], [4, 5], [6, 9], [9, 6], [11, 13], [15, 16], [19, 17], [21, 24], [23, 20], [26, 29], [30, 33], [31, 30], [33, 36], [37, 35], [40, 37], [43, 42], [47, 45], [51, 50], [53, 55], [57, 58], [60, 63], [65, 67], [69, 71], [71, 68], [73, 74], [77, 76], [79, 81], [83, 86], [86, 84], [88, 91], [89, 88], [92, 94], [95, 96], [99, 97], [100, 101], [103, 104], [106, 103], [109, 107], [113, 110], [116, 115], [120, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 618961, 0.529546, [[1, 3], [4, 5], [6, 9], [9, 6], [11, 13], [15, 16], [19, 17], [21, 24], [23, 20], [26, 29], [30, 33], [31, 30], [33, 36], [37, 35], [40, 37], [43, 42], [47, 45], [51, 50], [53, 55], [57, 58], [60, 63], [65, 67], [69, 71], [71, 68], [73, 74], [77, 76], [79, 81], [83, 82], [86, 84], [89, 88], [92, 94], [93, 90], [95, 96], [99, 97], [100, 101], [103, 104], [106, 103], [109, 107], [113, 110], [116, 115], [120, 118]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 223711, 0.541773, [[30, 31], [45, 48], [53, 55], [62, 61], [63, 64], [64, 67], [68, 66], [71, 68], [72, 73], [75, 78], [78, 81], [82, 79], [85, 84], [87, 90], [89, 87], [91, 93], [95, 92], [97, 96], [99, 101], [102, 105], [105, 103], [109, 107], [111, 112], [116, 115], [118, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 223711, 0.851895, [[2, 3], [4, 7], [8, 6], [12, 10], [14, 16], [16, 13], [18, 19], [23, 22], [26, 28], [27, 24], [30, 31], [34, 35], [39, 38], [42, 44], [43, 40], [45, 48], [49, 52], [52, 49], [53, 55], [56, 59], [59, 57], [62, 61], [63, 64], [64, 67], [68, 66], [71, 68], [72, 73], [75, 78], [78, 81], [82, 79], [85, 84], [87, 90], [89, 87], [91, 93], [95, 92], [97, 96], [99, 101], [102, 105], [105, 103], [109, 107], [111, 112], [116, 115], [118, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 223711, 0.214887, [[2, 3], [4, 7], [8, 6], [12, 10], [14, 16], [16, 13], [18, 19], [23, 22], [26, 28], [27, 24], [30, 31], [34, 35], [39, 38], [42, 44], [43, 40], [45, 48], [49, 52], [52, 49], [53, 55], [56, 59], [59, 57], [61, 60], [63, 64], [68, 66], [69, 70], [72, 73], [75, 78], [78, 81], [82, 79], [85, 84], [87, 90], [89, 87], [91, 93], [95, 92], [97, 96], [99, 101], [102, 105], [105, 103], [109, 107], [111, 112], [116, 115], [118, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 528880, 0.166842, [[7, 6], [16, 14], [21, 24], [30, 31], [40, 37], [45, 48], [55, 53], [63, 60], [69, 70], [78, 77], [84, 86], [91, 94], [102, 99], [109, 107], [115, 116]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 528880, 0.238968, [[2, 3], [7, 6], [10, 12], [16, 14], [20, 18], [21, 24], [28, 25], [30, 31], [33, 36], [37, 34], [40, 37], [43, 42], [45, 48], [49, 51], [55, 53], [57, 58], [61, 64], [63, 60], [64, 67], [69, 70], [73, 75], [78, 77], [82, 80], [84, 86], [90, 88], [91, 94], [97, 96], [102, 99], [103, 105], [109, 107], [113, 110], [115, 116], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 528880, 0.403338, [[2, 3], [7, 6], [10, 12], [11, 8], [16, 14], [20, 18], [21, 24], [25, 23], [26, 28], [28, 25], [30, 31], [33, 36], [37, 34], [40, 37], [42, 45], [43, 42], [45, 48], [49, 51], [52, 54], [55, 53], [57, 58], [61, 64], [63, 60], [64, 67], [69, 70], [73, 75], [78, 77], [80, 83], [82, 80], [84, 86], [87, 90], [90, 88], [91, 94], [97, 96], [102, 99], [103, 105], [109, 107], [112, 113], [113, 110], [115, 116], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 528880, 0.841025, [[2, 3], [7, 6], [10, 12], [11, 8], [14, 11], [16, 14], [20, 18], [21, 24], [25, 23], [26, 28], [28, 25], [30, 31], [33, 36], [37, 34], [40, 37], [42, 45], [43, 42], [45, 48], [49, 51], [52, 54], [55, 53], [57, 58], [61, 64], [63, 60], [64, 67], [69, 70], [73, 75], [78, 77], [80, 83], [82, 80], [84, 86], [87, 90], [90, 88], [91, 94], [94, 91], [97, 96], [102, 99], [103, 105], [106, 104], [109, 107], [112, 113], [113, 110], [115, 116], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 422769, 0.958906, [[4, 2], [8, 5], [9, 10], [12, 11], [15, 18], [16, 13], [20, 22], [24, 23], [25, 27], [29, 32], [32, 30], [35, 33], [39, 36], [40, 42], [41, 39], [44, 47], [47, 48], [49, 52], [54, 53], [57, 58], [62, 60], [63, 65], [68, 70], [71, 68], [73, 74], [74, 71], [76, 77], [81, 80], [83, 86], [85, 83], [88, 89], [91, 93], [94, 91], [97, 95], [100, 97], [101, 100], [103, 106], [104, 103], [107, 109], [110, 111], [113, 112], [114, 117], [117, 115], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 422769, 0.0746257, [[4, 2], [8, 5], [9, 10], [12, 11], [15, 18], [16, 13], [20, 22], [24, 23], [25, 27], [29, 32], [32, 30], [35, 33], [39, 36], [40, 42], [41, 39], [44, 47], [47, 48], [49, 52], [54, 53], [57, 58], [62, 60], [63, 65], [68, 70], [71, 68], [73, 74], [74, 71], [76, 77], [81, 80], [83, 86], [85, 83], [88, 89], [91, 93], [94, 91], [97, 95], [100, 97], [101, 100], [103, 106], [106, 103], [107, 109], [110, 111], [113, 112], [114, 117], [117, 115], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 422769, 0.780313, [[4, 2], [8, 5], [9, 10], [12, 11], [15, 18], [16, 13], [20, 22], [24, 23], [25, 27], [29, 32], [32, 30], [35, 34], [39, 36], [40, 42], [41, 39], [44, 47], [47, 48], [49, 52], [54, 53], [57, 58], [62, 60], [63, 65], [68, 70], [71, 68], [73, 74], [74, 71], [76, 77], [80, 78], [83, 86], [85, 83], [88, 89], [91, 93], [94, 91], [97, 95], [100, 97], [101, 100], [103, 106], [106, 103], [107, 109], [110, 111], [113, 112], [114, 117], [117, 115], [119, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 422769, 0.772332, [[4, 2], [8, 5], [9, 10], [12, 11], [15, 18], [16, 13], [20, 22], [24, 23], [25, 27], [29, 32], [32, 30], [35, 34], [39, 36], [40, 42], [41, 39], [44, 47], [47, 48], [49, 52], [54, 53], [57, 58], [62, 60], [63, 65], [68, 70], [71, 68], [73, 74], [74, 71], [76, 77], [80, 78], [83, 86], [85, 83], [88, 89], [91, 93], [94, 91], [97, 95], [100, 97], [101, 100], [103, 106], [106, 103], [107, 109], [110, 111], [113, 112], [114, 117], [117, 115], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 422769, 0.698751, [[4, 2], [8, 5], [9, 10], [12, 11], [15, 18], [16, 14], [20, 22], [23, 21], [25, 27], [29, 28], [30, 32], [34, 35], [38, 36], [40, 42], [42, 39], [44, 47], [47, 48], [49, 52], [52, 51], [56, 55], [58, 59], [62, 60], [63, 65], [68, 70], [71, 68], [74, 71], [76, 79], [77, 76], [79, 82], [83, 86], [85, 83], [88, 89], [91, 93], [94, 91], [97, 95], [100, 97], [101, 100], [103, 106], [106, 103], [107, 109], [110, 111], [114, 117], [115, 113], [117, 118], [120, 119]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.713091, [[3, 2], [5, 8], [8, 5], [11, 12], [12, 9], [14, 15], [17, 20], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 35], [41, 42], [46, 45], [51, 49], [52, 55], [55, 53], [58, 57], [60, 62], [63, 66], [66, 63], [69, 68], [73, 72], [78, 75], [79, 82], [80, 78], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 111], [113, 110], [115, 118], [116, 115], [118, 121]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.912651, [[3, 2], [5, 8], [8, 5], [11, 12], [12, 9], [14, 15], [17, 20], [20, 22], [23, 21], [27, 25], [29, 31], [31, 28], [34, 33], [37, 39], [38, 35], [41, 42], [44, 47], [47, 50], [51, 49], [52, 55], [55, 53], [58, 57], [60, 62], [63, 66], [66, 63], [69, 68], [73, 72], [78, 75], [79, 82], [80, 78], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 111], [113, 110], [115, 118], [116, 115], [119, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.515236, [[3, 2], [8, 5], [11, 12], [12, 9], [14, 15], [16, 18], [20, 22], [23, 21], [27, 25], [29, 31], [31, 28], [34, 33], [37, 39], [38, 35], [41, 42], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [58, 57], [60, 62], [63, 66], [66, 63], [69, 68], [73, 72], [78, 75], [79, 82], [80, 78], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 111], [113, 110], [115, 118], [116, 115], [119, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.320792, [[3, 2], [8, 5], [11, 12], [12, 9], [14, 15], [16, 18], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 35], [41, 42], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [59, 58], [60, 62], [63, 66], [66, 63], [69, 68], [73, 72], [78, 75], [79, 82], [80, 78], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 111], [113, 110], [115, 118], [116, 115], [119, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.0178669, [[3, 2], [8, 5], [11, 12], [12, 9], [14, 15], [16, 18], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 35], [41, 42], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [56, 59], [60, 62], [63, 66], [66, 63], [69, 68], [73, 72], [76, 79], [78, 75], [79, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 111], [113, 110], [115, 118], [116, 115], [119, 120]]];
+
+//r=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.112237, [[3, 2], [8, 5], [11, 12], [12, 9], [14, 15], [19, 18], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 36], [41, 42], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [56, 59], [60, 62], [63, 66], [66, 63], [69, 68], [73, 72], [76, 79], [78, 75], [79, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 111], [113, 110], [115, 118], [116, 115], [119, 120]]];
+
+r=
+
+//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.817473, [[3, 2], [8, 5], [11, 12], [12, 9], [14, 15], [19, 18], [20, 22], [23, 21], [27, 25], [29, 31], [31, 28], [34, 33], [37, 39], [38, 36], [41, 42], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [56, 59], [60, 62], [63, 66], [66, 63], [69, 68], [73, 70], [76, 79], [78, 75], [79, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 112], [113, 110], [115, 118], [116, 115], [119, 120]]]
+
+//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.167311, [[3, 2], [6, 5], [7, 8], [11, 12], [12, 9], [14, 15], [19, 18], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 36], [41, 42], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [56, 59], [60, 61], [63, 66], [66, 63], [69, 68], [73, 70], [76, 79], [78, 75], [79, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 112], [113, 110], [115, 118], [116, 115], [119, 120]]]
+
+//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.805503, [[3, 2], [6, 5], [7, 8], [11, 12], [12, 9], [15, 17], [19, 18], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 36], [42, 43], [46, 45], [47, 50], [51, 49], [52, 55], [55, 53], [56, 59], [60, 61], [63, 66], [66, 63], [69, 68], [73, 70], [76, 79], [78, 75], [79, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 112], [113, 110], [115, 118], [116, 115], [119, 120]]]
+
+//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.243596, [[2, 3], [6, 5], [7, 8], [11, 12], [12, 9], [15, 17], [19, 18], [20, 22], [23, 21], [27, 25], [31, 28], [34, 33], [37, 39], [38, 36], [42, 40], [46, 45], [47, 50], [52, 55], [55, 53], [56, 59], [60, 61], [63, 66], [66, 63], [69, 68], [73, 70], [76, 79], [78, 75], [79, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 112], [113, 110], [115, 118], [116, 115], [119, 120]]]
+
+//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.711722, [[2, 3], [6, 5], [7, 8], [11, 14], [12, 9], [15, 17], [19, 18], [20, 22], [23, 21], [27, 25], [30, 29], [34, 33], [37, 39], [38, 36], [42, 40], [44, 47], [46, 43], [50, 49], [52, 55], [55, 53], [56, 59], [60, 61], [63, 66], [66, 63], [69, 68], [73, 70], [76, 79], [78, 75], [81, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 112], [113, 110], [115, 118], [116, 115], [119, 120]]]
+
+[92.75, 31.5, 0.75, 0.75, 3, 3.375, 521827, 0.6638, [[2, 3], [6, 8], [9, 11], [12, 9], [14, 13], [15, 17], [19, 18], [20, 22], [23, 21], [27, 25], [30, 29], [34, 33], [37, 39], [38, 36], [42, 40], [44, 47], [46, 43], [50, 49], [52, 55], [55, 53], [56, 59], [60, 61], [63, 66], [66, 63], [69, 68], [73, 70], [76, 79], [78, 75], [81, 82], [84, 85], [88, 90], [92, 93], [95, 98], [98, 96], [101, 99], [103, 105], [105, 102], [107, 109], [110, 112], [113, 110], [115, 118], [116, 115], [119, 120]]]
+;
+
+railing = r==undef ? fill_gaps(balusters_new(horizontal_span,vertical_span(),initial_seed=initial_seed)) : balusters_load(r);
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.964886, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [25, 23], [28, 27], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [54, 52], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [94, 95], [97, 98], [100, 102], [104, 103], [106, 108], [111, 113], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, undef, 8, undef, undef, 9, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, undef, 19, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, 33, undef, undef, 34, undef, undef, 35, undef, undef, undef, 36, undef, 37, undef, undef, undef, undef, 38, undef, undef, undef, 39, undef, undef, 40, undef, undef, 41, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, undef, 7, 8, undef, undef, 9, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, 19, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, undef, 33, undef, undef, 34, undef, undef, undef, 35, 36, undef, undef, undef, undef, 37, undef, undef, undef, undef, 38, undef, 39, 40, undef, 41, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.234002, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [28, 27], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [54, 52], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [94, 95], [97, 98], [100, 102], [104, 103], [106, 108], [111, 113], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, undef, 9, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, undef, 19, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, 33, undef, undef, 34, undef, undef, 35, undef, undef, undef, 36, undef, 37, undef, undef, undef, undef, 38, undef, undef, undef, 39, undef, undef, 40, undef, undef, 41, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, undef, 9, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, 19, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, undef, 33, undef, undef, 34, undef, undef, undef, 35, 36, undef, undef, undef, undef, 37, undef, undef, undef, undef, 38, undef, 39, 40, undef, 41, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.756435, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [54, 52], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [94, 95], [97, 98], [99, 101], [104, 103], [106, 108], [111, 113], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, undef, 19, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, 33, undef, undef, 34, undef, 35, undef, undef, undef, undef, 36, undef, 37, undef, undef, undef, undef, 38, undef, undef, undef, 39, undef, undef, 40, undef, undef, 41, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, 19, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, undef, 33, undef, undef, 34, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, undef, undef, undef, 38, undef, 39, 40, undef, 41, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.296575, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [54, 52], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [94, 95], [97, 98], [99, 101], [104, 103], [106, 108], [111, 113], [112, 110], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, undef, 19, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, 33, undef, undef, 34, undef, 35, undef, undef, undef, undef, 36, undef, 37, undef, undef, undef, undef, 38, 39, undef, undef, 40, undef, undef, 41, undef, undef, 42, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, 19, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, undef, 33, undef, undef, 34, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, 38, undef, undef, 39, undef, 40, 41, undef, 42, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.424737, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [53, 55], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [94, 95], [97, 98], [99, 101], [104, 103], [106, 108], [111, 113], [112, 110], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, 19, undef, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, 33, undef, undef, 34, undef, 35, undef, undef, undef, undef, 36, undef, 37, undef, undef, undef, undef, 38, 39, undef, undef, 40, undef, undef, 41, undef, undef, 42, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, undef, undef, undef, 19, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, undef, 33, undef, undef, 34, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, 38, undef, undef, 39, undef, 40, 41, undef, 42, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.331489, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [53, 55], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [96, 94], [97, 98], [99, 101], [104, 103], [107, 108], [111, 113], [112, 110], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, 19, undef, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, undef, undef, 33, 34, undef, 35, undef, undef, undef, undef, 36, undef, undef, 37, undef, undef, undef, 38, 39, undef, undef, 40, undef, undef, 41, undef, undef, 42, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, undef, undef, undef, 19, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, 33, undef, undef, undef, 34, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, 38, undef, undef, 39, undef, 40, 41, undef, 42, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.125192, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [53, 55], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [95, 97], [96, 94], [99, 101], [104, 103], [107, 108], [111, 113], [112, 110], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, 19, undef, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, undef, 33, 34, undef, undef, 35, undef, undef, undef, undef, 36, undef, undef, 37, undef, undef, undef, 38, 39, undef, undef, 40, undef, undef, 41, undef, undef, 42, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, undef, undef, undef, 19, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, 33, undef, undef, 34, undef, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, 38, undef, undef, 39, undef, 40, 41, undef, 42, undef, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.0359516, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [53, 55], [56, 59], [59, 56], [60, 62], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 80], [82, 85], [85, 83], [89, 88], [93, 91], [95, 97], [96, 94], [99, 101], [104, 103], [107, 108], [111, 113], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, 19, undef, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, undef, 33, 34, undef, undef, 35, undef, undef, undef, undef, 36, undef, undef, 37, undef, undef, undef, 38, undef, undef, undef, 39, undef, undef, 40, undef, undef, 41, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, undef, undef, undef, 19, 20, undef, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, 33, undef, undef, 34, undef, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, undef, undef, undef, 38, undef, 39, 40, undef, 41, undef, undef, undef, undef]];
+
+//railing = [92.75, 31.5, 0.75, 0.75, 3, 3.375, 775438, 0.956416, [[2, 3], [5, 2], [8, 6], [12, 9], [14, 17], [15, 14], [17, 20], [21, 24], [24, 22], [27, 26], [31, 30], [33, 35], [38, 40], [39, 37], [40, 43], [43, 44], [45, 48], [48, 46], [51, 50], [53, 55], [56, 59], [59, 56], [60, 63], [63, 65], [67, 64], [70, 69], [75, 72], [76, 77], [79, 82], [82, 85], [85, 83], [89, 88], [93, 91], [95, 97], [96, 94], [99, 101], [104, 103], [107, 108], [111, 113], [112, 110], [115, 116], [118, 115], [121, 118]], [undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, undef, 3, undef, 4, 5, undef, 6, undef, undef, undef, 7, undef, undef, 8, undef, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, 13, 14, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, 19, undef, undef, 20, undef, undef, 21, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, 25, undef, undef, undef, undef, 26, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, undef, 32, undef, 33, 34, undef, undef, 35, undef, undef, undef, undef, 36, undef, undef, 37, undef, undef, undef, 38, 39, undef, undef, 40, undef, undef, 41, undef, undef, 42, undef], [undef, undef, 0, 1, undef, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, 9, undef, undef, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, 18, undef, undef, undef, undef, 19, 20, undef, undef, 21, undef, undef, undef, 22, 23, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, undef, undef, 27, undef, undef, undef, undef, 28, 29, undef, 30, undef, undef, 31, undef, undef, 32, undef, undef, 33, undef, undef, 34, undef, undef, undef, 35, undef, 36, undef, undef, undef, undef, 37, undef, 38, undef, undef, 39, undef, 40, 41, undef, 42, undef, undef, undef, undef]];
+
+//railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.375, 379389, 0.517676, [[3, 2], [6, 7], [9, 10], [12, 14], [15, 12], [17, 16], [18, 19], [21, 24], [25, 27], [28, 26], [31, 28], [34, 31], [36, 34], [38, 40], [40, 37], [42, 43], [47, 45], [51, 50], [53, 55], [58, 56], [62, 63], [63, 60], [64, 66], [68, 71], [71, 74], [74, 72], [77, 76], [80, 78], [83, 80], [84, 87], [86, 83], [87, 90], [91, 93], [94, 97], [97, 95], [100, 99], [103, 104], [107, 108], [110, 113], [113, 112], [116, 114], [117, 119], [121, 120]]]);
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 379389, 0.911086, [[3, 2], [6, 7], [9, 10], [12, 14], [14, 17], [15, 12], [18, 19], [21, 24], [25, 27], [28, 26], [31, 28], [33, 36], [34, 31], [38, 40], [40, 37], [42, 43], [47, 45], [51, 50], [53, 55], [58, 56], [62, 63], [63, 60], [64, 66], [68, 71], [71, 70], [74, 72], [77, 76], [80, 82], [83, 80], [86, 83], [87, 90], [88, 86], [91, 93], [94, 97], [97, 95], [100, 99], [103, 104], [107, 108], [110, 113], [113, 112], [116, 114], [117, 119], [121, 120]], [undef, undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, 3, undef, 4, 5, undef, undef, 6, undef, undef, 7, undef, undef, undef, 8, undef, undef, 9, undef, undef, 10, undef, 11, 12, undef, undef, undef, 13, undef, 14, undef, 15, undef, undef, undef, undef, 16, undef, undef, undef, 17, undef, 18, undef, undef, undef, undef, 19, undef, undef, undef, 20, 21, 22, undef, undef, undef, 23, undef, undef, 24, undef, undef, 25, undef, undef, 26, undef, undef, 27, undef, undef, 28, undef, undef, 29, 30, 31, undef, undef, 32, undef, undef, 33, undef, undef, 34, undef, undef, 35, undef, undef, 36, undef, undef, undef, 37, undef, undef, 38, undef, undef, 39, undef, undef, 40, 41, undef, undef, undef, 42, undef], [undef, undef, 0, undef, undef, undef, undef, 1, undef, undef, 2, undef, 3, undef, 4, undef, undef, 5, undef, 6, undef, undef, undef, undef, 7, undef, 8, 9, 10, undef, undef, 11, undef, undef, undef, undef, 12, 13, undef, undef, 14, undef, undef, 15, undef, 16, undef, undef, undef, undef, 17, undef, undef, undef, undef, 18, 19, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, undef, undef, undef, 23, 24, 25, undef, undef, undef, 26, undef, undef, undef, 27, undef, 28, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, 32, undef, 33, undef, 34, undef, 35, undef, undef, undef, undef, 36, undef, undef, undef, 37, undef, undef, undef, 38, 39, 40, undef, undef, undef, undef, 41, 42, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 379389, 0.171067, [[3, 2], [6, 7], [9, 10], [12, 14], [14, 17], [15, 12], [18, 19], [21, 24], [25, 27], [28, 26], [31, 28], [33, 36], [34, 31], [37, 40], [40, 37], [42, 43], [47, 45], [51, 50], [53, 55], [58, 57], [62, 63], [63, 60], [64, 66], [68, 71], [71, 70], [74, 72], [77, 76], [80, 82], [83, 80], [86, 83], [87, 90], [88, 86], [91, 93], [94, 97], [97, 95], [100, 99], [103, 104], [107, 108], [110, 113], [113, 112], [116, 114], [118, 120], [119, 117]], [undef, undef, undef, 0, undef, undef, 1, undef, undef, 2, undef, undef, 3, undef, 4, 5, undef, undef, 6, undef, undef, 7, undef, undef, undef, 8, undef, undef, 9, undef, undef, 10, undef, 11, 12, undef, undef, 13, undef, undef, 14, undef, 15, undef, undef, undef, undef, 16, undef, undef, undef, 17, undef, 18, undef, undef, undef, undef, 19, undef, undef, undef, 20, 21, 22, undef, undef, undef, 23, undef, undef, 24, undef, undef, 25, undef, undef, 26, undef, undef, 27, undef, undef, 28, undef, undef, 29, 30, 31, undef, undef, 32, undef, undef, 33, undef, undef, 34, undef, undef, 35, undef, undef, 36, undef, undef, undef, 37, undef, undef, 38, undef, undef, 39, undef, undef, 40, undef, 41, 42, undef, undef, undef], [undef, undef, 0, undef, undef, undef, undef, 1, undef, undef, 2, undef, 3, undef, 4, undef, undef, 5, undef, 6, undef, undef, undef, undef, 7, undef, 8, 9, 10, undef, undef, 11, undef, undef, undef, undef, 12, 13, undef, undef, 14, undef, undef, 15, undef, 16, undef, undef, undef, undef, 17, undef, undef, undef, undef, 18, undef, 19, undef, undef, 20, undef, undef, 21, undef, undef, 22, undef, undef, undef, 23, 24, 25, undef, undef, undef, 26, undef, undef, undef, 27, undef, 28, 29, undef, undef, 30, undef, undef, undef, 31, undef, undef, 32, undef, 33, undef, 34, undef, 35, undef, undef, undef, undef, 36, undef, undef, undef, 37, undef, undef, undef, 38, 39, 40, undef, undef, 41, undef, undef, 42, undef, undef]];
+
+//railing=[92.75, 31.5, 1, 1, 3, 3.375, 771911, 0.851354, [[1, 3], [3, 1], [6, 4], [7, 8], [9, 11], [12, 9], [14, 12], [16, 13], [18, 17], [21, 19], [22, 23], [25, 28], [26, 25], [27, 30], [30, 32], [32, 35], [35, 36], [36, 33], [37, 39], [41, 40], [42, 44], [45, 47], [48, 49], [50, 53], [53, 50], [54, 56], [58, 57], [60, 59], [62, 60], [63, 64], [66, 63], [68, 65], [70, 68], [72, 71], [76, 73], [77, 80], [78, 77], [79, 82], [83, 81], [85, 83], [86, 87], [88, 91]], [undef, 0, undef, 1, undef, undef, 2, 3, undef, 4, undef, undef, 5, undef, 6, undef, 7, undef, 8, undef, undef, 9, 10, undef, undef, 11, 12, 13, undef, undef, 14, undef, 15, undef, undef, 16, 17, 18, undef, undef, undef, 19, 20, undef, undef, 21, undef, undef, 22, undef, 23, undef, undef, 24, 25, undef, undef, undef, 26, undef, 27, undef, 28, 29, undef, undef, 30, undef, 31, undef, 32, undef, 33, undef, undef, undef, 34, 35, 36, 37, undef, undef, undef, 38, undef, 39, 40, undef, 41, undef, undef, undef], [undef, 0, undef, 1, 2, undef, undef, undef, 3, 4, undef, 5, 6, 7, undef, undef, undef, 8, undef, 9, undef, undef, undef, 10, undef, 11, undef, undef, 12, undef, 13, undef, 14, 15, undef, 16, 17, undef, undef, 18, 19, undef, undef, undef, 20, undef, undef, 21, undef, 22, 23, undef, undef, 24, undef, undef, 25, 26, undef, 27, 28, undef, undef, 29, 30, 31, undef, undef, 32, undef, undef, 33, undef, 34, undef, undef, undef, 35, undef, undef, 36, 37, 38, 39, undef, undef, undef, 40, undef, undef, undef, 41]];
+
+//railing=[92.75, 31.5, 1, 1, 3, 3.375, 209573, 0.664573, [[2, 0], [4, 6], [5, 2], [7, 8], [10, 9], [11, 12], [12, 14], [14, 11], [15, 16], [18, 17], [19, 22], [21, 19], [23, 24], [27, 25], [29, 31], [30, 27], [31, 34], [34, 36], [36, 39], [39, 38], [40, 42], [42, 45], [44, 47], [45, 43], [47, 44], [49, 48], [50, 51], [52, 54], [54, 52], [56, 57], [59, 58], [61, 63], [62, 65], [63, 60], [65, 66], [67, 70], [69, 67], [72, 69], [73, 76], [74, 72], [76, 75], [78, 79], [81, 80], [83, 85], [85, 82], [87, 86], [90, 87], [91, 89]], [undef, undef, 0, undef, 1, 2, undef, 3, undef, undef, 4, 5, 6, undef, 7, 8, undef, undef, 9, 10, undef, 11, undef, 12, undef, undef, undef, 13, undef, 14, 15, 16, undef, undef, 17, undef, 18, undef, undef, 19, 20, undef, 21, undef, 22, 23, undef, 24, undef, 25, 26, undef, 27, undef, 28, undef, 29, undef, undef, 30, undef, 31, 32, 33, undef, 34, undef, 35, undef, 36, undef, undef, 37, 38, 39, undef, 40, undef, 41, undef, undef, 42, undef, 43, undef, 44, undef, 45, undef, undef, 46, 47], [0, undef, 1, undef, undef, undef, 2, undef, 3, 4, undef, 5, 6, undef, 7, undef, 8, 9, undef, 10, undef, undef, 11, undef, 12, 13, undef, 14, undef, undef, undef, 15, undef, undef, 16, undef, 17, undef, 18, 19, undef, undef, 20, 21, 22, 23, undef, 24, 25, undef, undef, 26, 27, undef, 28, undef, undef, 29, 30, undef, 31, undef, undef, 32, undef, 33, 34, 35, undef, 36, 37, undef, 38, undef, undef, 39, 40, undef, undef, 41, 42, undef, 43, undef, undef, 44, 45, 46, undef, 47, undef, undef]];
+
+//railing=[92.75, 31.5, 1, 1, 3, 3.375, 209573, 0.645856, [[0, 1], [1, 3], [3, 6], [7, 8], [9, 12], [13, 10], [15, 14], [16, 17], [19, 21], [22, 20], [24, 22], [26, 25], [29, 31], [30, 27], [33, 32], [34, 35], [36, 39], [39, 38], [41, 40], [42, 45], [45, 43], [47, 44], [49, 48], [51, 52], [53, 55], [56, 53], [58, 56], [60, 62], [61, 59], [62, 65], [65, 67], [68, 70], [72, 69], [74, 77], [75, 72], [77, 74], [78, 79], [82, 80], [83, 84], [85, 88], [88, 86], [90, 89]], [0, 1, undef, 2, undef, undef, undef, 3, undef, 4, undef, undef, undef, 5, undef, 6, 7, undef, undef, 8, undef, undef, 9, undef, 10, undef, 11, undef, undef, 12, 13, undef, undef, 14, 15, undef, 16, undef, undef, 17, undef, 18, 19, undef, undef, 20, undef, 21, undef, 22, undef, 23, undef, 24, undef, undef, 25, undef, 26, undef, 27, 28, 29, undef, undef, 30, undef, undef, 31, undef, undef, undef, 32, undef, 33, 34, undef, 35, 36, undef, undef, undef, 37, 38, undef, 39, undef, undef, 40, undef, 41, undef], [undef, 0, undef, 1, undef, undef, 2, undef, 3, undef, 4, undef, 5, undef, 6, undef, undef, 7, undef, undef, 8, 9, 10, undef, undef, 11, undef, 12, undef, undef, undef, 13, 14, undef, undef, 15, undef, undef, 16, 17, 18, undef, undef, 19, 20, 21, undef, undef, 22, undef, undef, undef, 23, 24, undef, 25, 26, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, 30, undef, 31, 32, undef, 33, undef, 34, undef, undef, 35, undef, 36, 37, undef, undef, undef, 38, undef, 39, undef, 40, 41, undef, undef]];
+
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.375, 144082, 0.782302, [[1, 2], [4, 6], [6, 8], [7, 4], [9, 7], [10, 12], [12, 9], [13, 14], [15, 18], [18, 15], [19, 22], [20, 19], [21, 24], [24, 26], [27, 25], [28, 30], [30, 27], [31, 32], [35, 34], [37, 38], [39, 37], [40, 41], [44, 43], [47, 44], [49, 48], [51, 53], [52, 50], [53, 56], [56, 54], [58, 57], [61, 59], [62, 61], [63, 64], [66, 63], [68, 65], [70, 68], [71, 72], [74, 77], [75, 74], [76, 79], [79, 82], [83, 84], [87, 85], [88, 90], [90, 87]]]);
+
+//railing = balusters_load([92.75, 31.5, 0.75, 0.75, 3, 3.375, 331265, 0.0259364, [[2, 3], [5, 8], [10, 12], [15, 14], [17, 20], [20, 17], [22, 23], [27, 25], [29, 32], [31, 28], [33, 35], [36, 38], [39, 37], [42, 41], [46, 45], [48, 50], [51, 54], [54, 52], [59, 56], [60, 62], [62, 59], [63, 65], [66, 67], [69, 71], [73, 76], [74, 73], [76, 79], [81, 82], [86, 84], [89, 88], [92, 93], [95, 92], [98, 96], [100, 101], [105, 103], [108, 107], [112, 111], [115, 116], [118, 121]]]);
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 566856, 0.761885, [[1, 4], [6, 7], [8, 11], [12, 10], [15, 14], [20, 18], [21, 24], [24, 21], [26, 27], [31, 28], [35, 33], [38, 37], [41, 43], [43, 40], [44, 46], [48, 51], [53, 54], [58, 56], [60, 62], [62, 59], [67, 64], [70, 69], [73, 76], [74, 73], [76, 79], [80, 82], [83, 85], [86, 84], [90, 87], [91, 90], [92, 93], [96, 98], [97, 95], [99, 101], [104, 103], [108, 107], [110, 111], [114, 117], [117, 114], [119, 120]], [undef, 0, undef, undef, undef, undef, 1, undef, 2, undef, undef, undef, 3, undef, undef, 4, undef, undef, undef, undef, 5, 6, undef, undef, 7, undef, 8, undef, undef, undef, undef, 9, undef, undef, undef, 10, undef, undef, 11, undef, undef, 12, undef, 13, 14, undef, undef, undef, 15, undef, undef, undef, undef, 16, undef, undef, undef, undef, 17, undef, 18, undef, 19, undef, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, 23, undef, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, 27, undef, undef, undef, 28, 29, 30, undef, undef, undef, 31, 32, undef, 33, undef, undef, undef, undef, 34, undef, undef, undef, 35, undef, 36, undef, undef, undef, 37, undef, undef, 38, undef, 39, undef, undef, undef], [undef, undef, undef, undef, 0, undef, undef, 1, undef, undef, 2, 3, undef, undef, 4, undef, undef, undef, 5, undef, undef, 6, undef, undef, 7, undef, undef, 8, 9, undef, undef, undef, undef, 10, undef, undef, undef, 11, undef, undef, 12, undef, undef, 13, undef, undef, 14, undef, undef, undef, undef, 15, undef, undef, 16, undef, 17, undef, undef, 18, undef, undef, 19, undef, 20, undef, undef, undef, undef, 21, undef, undef, undef, 22, undef, undef, 23, undef, undef, 24, undef, undef, 25, undef, 26, 27, undef, 28, undef, undef, 29, undef, undef, 30, undef, 31, undef, undef, 32, undef, undef, 33, undef, 34, undef, undef, undef, 35, undef, undef, undef, 36, undef, undef, 37, undef, undef, 38, undef, undef, 39, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 566856, 0.0490672, [[1, 4], [6, 7], [8, 11], [12, 10], [15, 14], [20, 18], [21, 24], [24, 21], [26, 27], [31, 28], [35, 33], [38, 37], [41, 43], [43, 40], [44, 46], [48, 51], [53, 54], [58, 56], [60, 62], [62, 59], [67, 64], [70, 69], [73, 76], [74, 73], [76, 79], [80, 82], [83, 81], [86, 84], [88, 90], [90, 87], [92, 93], [96, 98], [97, 95], [99, 101], [104, 103], [108, 107], [110, 111], [114, 117], [117, 114], [119, 120]], [undef, 0, undef, undef, undef, undef, 1, undef, 2, undef, undef, undef, 3, undef, undef, 4, undef, undef, undef, undef, 5, 6, undef, undef, 7, undef, 8, undef, undef, undef, undef, 9, undef, undef, undef, 10, undef, undef, 11, undef, undef, 12, undef, 13, 14, undef, undef, undef, 15, undef, undef, undef, undef, 16, undef, undef, undef, undef, 17, undef, 18, undef, 19, undef, undef, undef, undef, 20, undef, undef, 21, undef, undef, 22, 23, undef, 24, undef, undef, undef, 25, undef, undef, 26, undef, undef, 27, undef, 28, undef, 29, undef, 30, undef, undef, undef, 31, 32, undef, 33, undef, undef, undef, undef, 34, undef, undef, undef, 35, undef, 36, undef, undef, undef, 37, undef, undef, 38, undef, 39, undef, undef, undef], [undef, undef, undef, undef, 0, undef, undef, 1, undef, undef, 2, 3, undef, undef, 4, undef, undef, undef, 5, undef, undef, 6, undef, undef, 7, undef, undef, 8, 9, undef, undef, undef, undef, 10, undef, undef, undef, 11, undef, undef, 12, undef, undef, 13, undef, undef, 14, undef, undef, undef, undef, 15, undef, undef, 16, undef, 17, undef, undef, 18, undef, undef, 19, undef, 20, undef, undef, undef, undef, 21, undef, undef, undef, 22, undef, undef, 23, undef, undef, 24, undef, 25, 26, undef, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, 31, undef, undef, 32, undef, undef, 33, undef, 34, undef, undef, undef, 35, undef, undef, undef, 36, undef, undef, 37, undef, undef, 38, undef, undef, 39, undef, undef]];
+
+//railing=[92.75, 31.5, 1, 1, 3, 3.375, 704546, 0.642538, [[1, 0], [4, 2], [6, 8], [7, 4], [10, 9], [12, 15], [14, 12], [15, 17], [18, 19], [20, 22], [23, 24], [25, 27], [27, 25], [30, 29], [31, 32], [32, 35], [35, 37], [39, 36], [41, 39], [42, 43], [44, 47], [48, 45], [51, 48], [53, 51], [55, 56], [56, 53], [58, 57], [60, 63], [62, 59], [64, 65], [66, 69], [67, 66], [69, 71], [73, 72], [74, 75], [76, 79], [80, 78], [82, 81], [85, 82], [86, 88], [87, 85], [88, 91]], [undef, 0, undef, undef, 1, undef, 2, 3, undef, undef, 4, undef, 5, undef, 6, 7, undef, undef, 8, undef, 9, undef, undef, 10, undef, 11, undef, 12, undef, undef, 13, 14, 15, undef, undef, 16, undef, undef, undef, 17, undef, 18, 19, undef, 20, undef, undef, undef, 21, undef, undef, 22, undef, 23, undef, 24, 25, undef, 26, undef, 27, undef, 28, undef, 29, undef, 30, 31, undef, 32, undef, undef, undef, 33, 34, undef, 35, undef, undef, undef, 36, undef, 37, undef, undef, 38, 39, 40, 41, undef, undef, undef], [0, undef, 1, undef, 2, undef, undef, undef, 3, 4, undef, undef, 5, undef, undef, 6, undef, 7, undef, 8, undef, undef, 9, undef, 10, 11, undef, 12, undef, 13, undef, undef, 14, undef, undef, 15, 16, 17, undef, 18, undef, undef, undef, 19, undef, 20, undef, 21, 22, undef, undef, 23, undef, 24, undef, undef, 25, 26, undef, 27, undef, undef, undef, 28, undef, 29, 30, undef, undef, 31, undef, 32, 33, undef, undef, 34, undef, undef, 35, 36, undef, 37, 38, undef, undef, 39, undef, undef, 40, undef, undef, 41]];
+
+// best so far at 1"
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.375, 704546, 0.642538, [[1, 0], [4, 2], [6, 8], [7, 4], [10, 9], [12, 15], [14, 12], [15, 17], [18, 19], [20, 22], [23, 24], [25, 27], [27, 25], [30, 29], [31, 32], [32, 35], [35, 37], [39, 36], [41, 39], [42, 43], [44, 47], [48, 45], [51, 48], [53, 51], [55, 56], [56, 53], [58, 57], [60, 63], [62, 59], [64, 65], [66, 69], [67, 66], [69, 71], [73, 72], [74, 75], [76, 79], [80, 78], [82, 81], [85, 82], [86, 88], [88, 85], [89, 90]]]);
+
+
+
+//railing = balusters_load([92.75, 31.5, 1, 1, 3, 3.375, 704546, 0.940825, [[1, 0], [4, 2], [6, 8], [7, 4], [10, 9], [12, 15], [14, 12], [16, 18], [19, 20], [21, 23], [23, 24], [25, 27], [27, 25], [30, 29], [31, 32], [32, 35], [35, 37], [39, 36], [41, 39], [42, 43], [44, 47], [48, 45], [51, 48], [53, 51], [55, 56], [56, 53], [58, 57], [60, 63], [62, 59], [64, 65], [66, 69], [67, 66], [69, 71], [73, 72], [74, 75], [76, 79], [80, 78], [82, 81], [85, 82], [86, 88], [87, 85], [88, 91]]]);
+
+
+//railing = [92.75, 31.5, 1, 1, 3, 3.375, 704546, 0.357777, [[1, 0], [4, 2], [7, 4], [8, 7], [9, 11], [11, 14], [14, 12], [15, 17], [18, 19], [20, 22], [21, 18], [23, 24], [24, 27], [27, 25], [30, 29], [31, 32], [33, 35], [35, 37], [39, 36], [41, 39], [42, 43], [46, 45], [47, 50], [51, 48], [52, 54], [53, 51], [55, 56], [58, 57], [60, 63], [62, 59], [64, 65], [66, 69], [70, 67], [72, 71], [74, 75], [76, 79], [80, 78], [82, 81], [85, 82], [86, 88], [87, 85], [88, 91]], [undef, 0, undef, undef, 1, undef, undef, 2, 3, 4, undef, 5, undef, undef, 6, 7, undef, undef, 8, undef, 9, 10, undef, 11, 12, undef, undef, 13, undef, undef, 14, 15, undef, 16, undef, 17, undef, undef, undef, 18, undef, 19, 20, undef, undef, undef, 21, 22, undef, undef, undef, 23, 24, 25, undef, 26, undef, undef, 27, undef, 28, undef, 29, undef, 30, undef, 31, undef, undef, undef, 32, undef, 33, undef, 34, undef, 35, undef, undef, undef, 36, undef, 37, undef, undef, 38, 39, 40, 41, undef, undef, undef], [0, undef, 1, undef, 2, undef, undef, 3, undef, undef, undef, 4, 5, undef, 6, undef, undef, 7, 8, 9, undef, undef, 10, undef, 11, 12, undef, 13, undef, 14, undef, undef, 15, undef, undef, 16, 17, 18, undef, 19, undef, undef, undef, 20, undef, 21, undef, undef, 22, undef, 23, 24, undef, undef, 25, undef, 26, 27, undef, 28, undef, undef, undef, 29, undef, 30, undef, 31, undef, 32, undef, 33, undef, undef, undef, 34, undef, undef, 35, 36, undef, 37, 38, undef, undef, 39, undef, undef, 40, undef, undef, 41]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 86269, 0.534564, [[2, 4], [6, 7], [10, 9], [14, 17], [15, 12], [18, 20], [23, 21], [24, 27], [26, 24], [28, 29], [32, 31], [33, 35], [36, 39], [40, 38], [43, 42], [45, 46], [49, 48], [53, 56], [54, 51], [57, 54], [59, 60], [64, 61], [67, 65], [70, 72], [71, 68], [74, 77], [78, 80], [82, 83], [86, 89], [88, 86], [89, 92], [93, 94], [98, 95], [99, 98], [100, 102], [104, 103], [107, 109], [108, 106], [112, 111], [115, 113], [118, 115], [119, 120]], [undef, undef, 0, undef, undef, undef, 1, undef, undef, undef, 2, undef, undef, undef, 3, 4, undef, undef, 5, undef, undef, undef, undef, 6, 7, undef, 8, undef, 9, undef, undef, undef, 10, 11, undef, undef, 12, undef, undef, undef, 13, undef, undef, 14, undef, 15, undef, undef, undef, 16, undef, undef, undef, 17, 18, undef, undef, 19, undef, 20, undef, undef, undef, undef, 21, undef, undef, 22, undef, undef, 23, 24, undef, undef, 25, undef, undef, undef, 26, undef, undef, undef, 27, undef, undef, undef, 28, undef, 29, 30, undef, undef, undef, 31, undef, undef, undef, undef, 32, 33, 34, undef, undef, undef, 35, undef, undef, 36, 37, undef, undef, undef, 38, undef, undef, 39, undef, undef, 40, 41, undef, undef, undef], [undef, undef, undef, undef, 0, undef, undef, 1, undef, 2, undef, undef, 3, undef, undef, undef, undef, 4, undef, undef, 5, 6, undef, undef, 7, undef, undef, 8, undef, 9, undef, 10, undef, undef, undef, 11, undef, undef, 12, 13, undef, undef, 14, undef, undef, undef, 15, undef, 16, undef, undef, 17, undef, undef, 18, undef, 19, undef, undef, undef, 20, 21, undef, undef, undef, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, undef, undef, 25, undef, undef, 26, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, undef, 31, 32, undef, undef, 33, undef, undef, undef, 34, 35, undef, undef, 36, undef, undef, 37, undef, 38, undef, 39, undef, 40, undef, undef, undef, undef, 41, undef, undef]];
+
+//railing=[92.75, 31.5, 0.75, 0.75, 3, 3.375, 86269, 0.270514, [[2, 4], [6, 7], [10, 9], [13, 16], [15, 12], [18, 19], [22, 21], [24, 27], [25, 23], [28, 26], [30, 31], [35, 33], [37, 40], [40, 38], [44, 42], [48, 45], [50, 49], [54, 57], [56, 53], [58, 60], [62, 61], [63, 65], [66, 68], [69, 70], [73, 72], [77, 79], [78, 75], [81, 82], [84, 86], [87, 85], [90, 87], [91, 90], [93, 94], [97, 98], [98, 95], [100, 103], [103, 106], [107, 109], [110, 113], [115, 112], [118, 116], [120, 119]], [undef, undef, 0, undef, undef, undef, 1, undef, undef, undef, 2, undef, undef, 3, undef, 4, undef, undef, 5, undef, undef, undef, 6, undef, 7, 8, undef, undef, 9, undef, 10, undef, undef, undef, undef, 11, undef, 12, undef, undef, 13, undef, undef, undef, 14, undef, undef, undef, 15, undef, 16, undef, undef, undef, 17, undef, 18, undef, 19, undef, undef, undef, 20, 21, undef, undef, 22, undef, undef, 23, undef, undef, undef, 24, undef, undef, undef, 25, 26, undef, undef, 27, undef, undef, 28, undef, undef, 29, undef, undef, 30, 31, undef, 32, undef, undef, undef, 33, 34, undef, 35, undef, undef, 36, undef, undef, undef, 37, undef, undef, 38, undef, undef, undef, undef, 39, undef, undef, 40, undef, 41, undef, undef], [undef, undef, undef, undef, 0, undef, undef, 1, undef, 2, undef, undef, 3, undef, undef, undef, 4, undef, undef, 5, undef, 6, undef, 7, undef, undef, 8, 9, undef, undef, undef, 10, undef, 11, undef, undef, undef, undef, 12, undef, 13, undef, 14, undef, undef, 15, undef, undef, undef, 16, undef, undef, undef, 17, undef, undef, undef, 18, undef, undef, 19, 20, undef, undef, undef, 21, undef, undef, 22, undef, 23, undef, 24, undef, undef, 25, undef, undef, undef, 26, undef, undef, 27, undef, undef, 28, 29, 30, undef, undef, 31, undef, undef, undef, 32, 33, undef, undef, 34, undef, undef, undef, undef, 35, undef, undef, 36, undef, undef, 37, undef, undef, 38, 39, undef, undef, 40, undef, undef, 41, undef, undef, undef]];
+
+//railing=[92.75, 31.5, 1, 1, 3, 3.375, 443837, 0.413788, [[2, 1], [5, 3], [7, 8], [8, 5], [10, 9], [12, 13], [14, 16], [18, 15], [19, 18], [21, 24], [23, 20], [24, 25], [25, 28], [28, 30], [29, 32], [32, 34], [35, 33], [37, 36], [40, 42], [41, 38], [43, 46], [46, 44], [48, 47], [50, 49], [52, 55], [53, 51], [56, 57], [59, 56], [61, 60], [64, 65], [65, 62], [66, 68], [69, 70], [71, 74], [74, 72], [76, 73], [78, 76], [79, 82], [81, 79], [82, 84], [83, 86], [86, 87], [88, 90], [90, 91]], [undef, undef, 0, undef, undef, 1, undef, 2, 3, undef, 4, undef, 5, undef, 6, undef, undef, undef, 7, 8, undef, 9, undef, 10, 11, 12, undef, undef, 13, 14, undef, undef, 15, undef, undef, 16, undef, 17, undef, undef, 18, 19, undef, 20, undef, undef, 21, undef, 22, undef, 23, undef, 24, 25, undef, undef, 26, undef, undef, 27, undef, 28, undef, undef, 29, 30, 31, undef, undef, 32, undef, 33, undef, undef, 34, undef, 35, undef, 36, 37, undef, 38, 39, 40, undef, undef, 41, undef, 42, undef, 43, undef], [undef, 0, undef, 1, undef, 2, undef, undef, 3, 4, undef, undef, undef, 5, undef, 6, 7, undef, 8, undef, 9, undef, undef, undef, 10, 11, undef, undef, 12, undef, 13, undef, 14, 15, 16, undef, 17, undef, 18, undef, undef, undef, 19, undef, 20, undef, 21, 22, undef, 23, undef, 24, undef, undef, undef, 25, 26, 27, undef, undef, 28, undef, 29, undef, undef, 30, undef, undef, 31, undef, 32, undef, 33, 34, 35, undef, 36, undef, undef, 37, undef, undef, 38, undef, 39, undef, 40, 41, undef, undef, 42, 43]];
 
 echo(str("railing = balusters_load(",balusters_dump(railing),");"));
 
 balusters_report(railing);
 
-rotate([0,0,-90]) {
+//rotate([0,0,-90]) {
 //    instructions(railing);
 
     translate([0, -feet(2), inches(12)]) {
-        railing(railing);
+        railing(railing, show_gaps=false);
     }
-}
+//}
 
