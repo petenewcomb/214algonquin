@@ -426,7 +426,7 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
                 rotate([0, a, 0]) {
                     socket_depth = baluster_socket_depth()/cos(a);
                     translate([0, sign(a)*(baluster_diameter()+extra_tilt_spacing)/2, -socket_depth]) {
-                        color("black",0.5) {
+                        color([0.4,0.4,0.4]) {
                             if (cubes) {
                                 translate([-baluster_diameter()/2,-baluster_diameter()/2,0]) {
                                     cube([baluster_diameter(), baluster_diameter(), vspan/cos(a)+2*socket_depth]);
@@ -472,7 +472,7 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
     }
 }
 
-module railing(b,show_gaps=false,left_post=true) {
+module railing(b,show_gaps=false,left_post=true,right_post=true,alpha=0.8) {
     hres = balusters_hres(b);
     margin = balusters_margin(b);
     hspan = balusters_hspan(b);
@@ -487,24 +487,26 @@ module railing(b,show_gaps=false,left_post=true) {
 
     // top rail
     translate([0, -top_rail_width()/2, bottom_rail_height()+vspan]) {
-        color(walnut(),0.8) cube([hspan,top_rail_width(),top_rail_height()]);
+        color(walnut(),alpha) cube([hspan,top_rail_width(),top_rail_height()]);
     }
 
     // bottom rail
     translate([0,-bottom_rail_width()/2,0]) {
-        color(walnut(),0.8) cube([hspan,bottom_rail_width(),bottom_rail_height()]);
+        color(walnut(),alpha) cube([hspan,bottom_rail_width(),bottom_rail_height()]);
     }
 
     if (left_post) {
         // left post
         translate([-post_width(),-post_width()/2,-inches(3)]) {
-            color(walnut(),0.8) cube([post_width(),post_width(),post_height()]);
+            color(walnut(),alpha) cube([post_width(),post_width(),post_height()]);
         }
     }
 
-    // right post
-    translate([hspan,-post_width()/2,-inches(3)]) {
-        color(walnut(),0.8) cube([post_width(),post_width(),post_height()]);
+    if (right_post) {
+        // right post
+        translate([hspan,-post_width()/2,-inches(3)]) {
+            color(walnut(),alpha) cube([post_width(),post_width(),post_height()]);
+        }
     }
 }
 
@@ -740,15 +742,15 @@ function horizontal_resolution() = inches(3/4);
 // master deck:
 //horizontal_span=inches(11+7/8);
 //horizontal_span=inches(55+1/4);
-//horizontal_span=inches(55+5/8);
-horizontal_span=inches(59+7/8); // 2x
+horizontal_span=inches(54+5/8);
+//horizontal_span=inches(59+7/8); // 2x
 
 railings=[for (b=[
 
 //// Stairwell
 
 // railing-92_75
-//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 760766, -1, 0.0499195, [[2, 1], [4, 6], [7, 10], [12, 9], [15, 14], [19, 17], [21, 20], [25, 23], [26, 27], [30, 28], [32, 34], [35, 32], [39, 37], [41, 42], [44, 47], [48, 45], [50, 51], [52, 54], [55, 57], [58, 55], [61, 58], [62, 63], [66, 64], [68, 71], [69, 66], [72, 74], [77, 76], [79, 82], [80, 79], [82, 85], [87, 88], [90, 92], [93, 91], [95, 97], [99, 100], [102, 105], [106, 109], [109, 107], [112, 111], [114, 115], [119, 116], [121, 120]]],
+[92.75, 31.5, 0.75, 0.75, 3, 3.375, 760766, -1, 0.0499195, [[2, 1], [4, 6], [7, 10], [12, 9], [15, 14], [19, 17], [21, 20], [25, 23], [26, 27], [30, 28], [32, 34], [35, 32], [39, 37], [41, 42], [44, 47], [48, 45], [50, 51], [52, 54], [55, 57], [58, 55], [61, 58], [62, 63], [66, 64], [68, 71], [69, 66], [72, 74], [77, 76], [79, 82], [80, 79], [82, 85], [87, 88], [90, 92], [93, 91], [95, 97], [99, 100], [102, 105], [106, 109], [109, 107], [112, 111], [114, 115], [119, 116], [121, 120]]],
 
 // railing-99
 //[99, 31.5, 0.75, 0.75, 3, 3.375, 96679, -1, 0.442657, [[3, 1], [4, 7], [6, 4], [8, 10], [12, 11], [14, 15], [19, 16], [20, 23], [21, 19], [23, 26], [28, 29], [31, 34], [34, 31], [36, 37], [39, 41], [44, 42], [45, 47], [49, 52], [50, 48], [53, 54], [56, 58], [60, 62], [65, 64], [67, 70], [71, 68], [72, 74], [76, 75], [80, 77], [82, 81], [84, 86], [88, 85], [89, 88], [90, 92], [94, 95], [97, 100], [101, 104], [105, 102], [108, 105], [111, 110], [116, 114], [118, 121], [119, 117], [124, 122], [125, 126], [130, 128]]],
@@ -795,8 +797,8 @@ railings=[for (b=[
 // railing-55_25
 //[55.25, 31.5, 0.75, 0.75, 3, 3.375, 223904, -1, 0.0060154, [[3, 2], [6, 7], [10, 9], [11, 13], [14, 17], [19, 16], [22, 20], [23, 25], [26, 27], [30, 33], [32, 29], [36, 35], [40, 38], [43, 42], [47, 50], [48, 46], [51, 52], [56, 55], [57, 60], [60, 63], [65, 62], [67, 66], [68, 70]]],
 
-// railing-55_5
-//[55.5, 31.5, 0.75, 0.75, 3, 3.375, 713683, -1, 0.960555, [[1, 3], [3, 6], [8, 7], [11, 13], [12, 9], [15, 16], [20, 17], [22, 21], [23, 25], [27, 26], [30, 33], [32, 29], [34, 35], [39, 37], [40, 42], [45, 44], [46, 49], [51, 48], [54, 53], [58, 56], [60, 61], [64, 67], [66, 63], [68, 70], [71, 72]]],
+// railing-54_5
+//[54.5, 31.5, 0.75, 0.75, 3, 3.375, 320360, -1, 0.763947, [[3, 2], [4, 7], [9, 8], [11, 13], [15, 12], [16, 18], [20, 21], [25, 23], [27, 26], [30, 32], [31, 28], [34, 33], [38, 35], [39, 40], [42, 45], [45, 43], [47, 48], [49, 51], [54, 52], [55, 56], [58, 61], [62, 60], [65, 63], [67, 66], [68, 69]]],
 
 // railing-59_75-1
 //[59.75, 31.5, 0.75, 0.75, 3, 3.375, 61400, -1, 0.450297, [[0, 1], [3, 5], [8, 6], [10, 9], [13, 16], [15, 12], [17, 18], [21, 19], [22, 23], [24, 27], [29, 26], [32, 31], [34, 35], [38, 36], [42, 41], [46, 49], [47, 44], [50, 52], [55, 53], [57, 56], [59, 60], [62, 65], [66, 63], [67, 68], [70, 72], [74, 73], [76, 77]]],
@@ -816,6 +818,7 @@ module railings(railings, i=0, o=0) {
     }
 }
 
+if (false) {
 if (len(railings) == 0) {
 
     railing=fill_gaps(balusters_new(horizontal_span,vertical_span(),initial_seed=initial_seed));
@@ -827,14 +830,15 @@ if (len(railings) == 0) {
 
     balusters_report(railing);
 
-    instructions(railing);
+//    instructions(railing);
 
-    rotate([0,0,-90]) {
-        translate([0, -feet(2), inches(12)]) {
+//    rotate([0,0,-90]) {
+//        translate([0, -feet(2), inches(12)]) {
             railing(railing, show_gaps=false);
-        }
-    }
+//        }
+//    }
 
 } else {
     railings(railings);
+}
 }
