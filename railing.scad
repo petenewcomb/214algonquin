@@ -5,10 +5,10 @@ use <math.scad>;
 
 $fn = 12;
 
-function _echo(x,s) = [x, search([str(s)], [])][0];
-function _assert(m,x,v) = x?v:_echo(v, str(m));
-function _value(n,v) = _echo(v, str(n," = ",v));
-function _func(n,a) = _echo(undef, str(n,"(",_args(a),")"));
+function _echo(s,x) = echo(str(s)) x;
+function _assert(m,x,v) = x?v:_echo(str(m), v);
+function _value(n,v) = _echo(str(n," = ",v), v);
+function _func(n,a) = _echo(str(n,"(",_args(a),")"), undef);
 function _args(a,i=0,s="") = i>=len(a)?s:_args(a,i+2,i==0?str(a[0],"=",a[1]):str(s,", ",a[i],"=",a[i+1]));
 
 e = exp(1);
@@ -22,7 +22,6 @@ function max_gap() = inches(3+3/8);
 function railing_height() = inches(38);
 function railing_bottom_gap() = inches(3.5);
 function vertical_span() = railing_height()-railing_bottom_gap()-top_rail_height()-bottom_rail_height();
-function intersection_density() = 1/3;
 
 function post_width() = inches(8);
 function post_height() = inches(42);
@@ -33,6 +32,7 @@ function bottom_rail_width() = inches(3);
 function baluster_diameter() = inches(3/8);
 function baluster_socket_depth() = min(top_rail_height(),bottom_rail_height())/2;
 function walnut() = [0.247, 0.165, 0.078];
+function lightwalnut() = [0.397, 0.315, 0.228];
 
 function rv(n,seed) = seed == undef ? rands(0,1,n) : rands(0,1,n,seed<1?seed*274247292924:seed);
 
@@ -90,38 +90,38 @@ function vgroupby(k, v, i=0, result=[]) =
 
 function balusters_hspan(b) = b[0];
 function balusters_vspan(b) = b[1];
-function balusters_hres(b) = b[2];
-function balusters_vres(b) = b[3];
-function balusters_max_tilt_offset(b) = b[4];
-function balusters_max_gap(b) = b[5];
-function balusters_initial_seed(b) = b[6];
-function balusters_growth_increment(b) = b[7];
-function balusters_next_seed(b) = b[8];
-function balusters_rods(b) = b[9];
-function balusters_bottom_map(b) = b[10];
-function balusters_top_map(b) = b[11];
-function balusters_gaps(b) = b[12];
-function balusters_avgaps(b) = b[13];
-function balusters_avgapszg(b) = b[14];
-function balusters_score_terms(b) = b[15];
-function balusters_score(b) = b[16];
+function balusters_skew(b) = b[2];
+function balusters_hres(b) = b[3];
+function balusters_vres(b) = b[4];
+function balusters_max_tilt_offset(b) = b[5];
+function balusters_max_gap(b) = b[6];
+function balusters_initial_seed(b) = b[7];
+function balusters_growth_increment(b) = b[8];
+function balusters_next_seed(b) = b[9];
+function balusters_rods(b) = b[10];
+function balusters_bottom_map(b) = b[11];
+function balusters_top_map(b) = b[12];
+function balusters_gaps(b) = b[13];
+function balusters_avgaps(b) = b[14];
+function balusters_avgapszg(b) = b[15];
+function balusters_score_terms(b) = b[16];
+function balusters_score(b) = b[17];
 
 function balusters_maps(b) = [balusters_bottom_map(b), balusters_top_map(b)];
 function balusters_max_tilt(b) = balusters_tilt(b, balusters_max_tilt_offset(b));
-function balusters_tilt(b, o) = atan(o*balusters_hres(b)/balusters_vspan(b));
-function balusters_max_spacing(b) = balusters_max_gap(b)+baluster_diameter();
+function balusters_tilt(b, o) = atan((balusters_skew(b)+o*balusters_hres(b))/balusters_vspan(b));
+function balusters_max_spacing(b) = (balusters_max_gap(b)+baluster_diameter())/cos(atan(balusters_skew(b)/balusters_vspan(b)));
 
 function balusters_rod_pitch(b) = balusters_max_spacing(b)*23/40;
-function balusters_intersection_pitch(b) = let(ideal=5*balusters_rod_pitch(b),hspan=balusters_hspan(b)) hspan/floor(hspan/ideal);
-function balusters_max_growth_increment(b) = round(balusters_hspan(b)/balusters_intersection_pitch(b)) - 2;
+function balusters_intersection_pitch(b) = let(ideal=5*balusters_rod_pitch(b),hspan=balusters_hspan(b)) hspan < ideal ? hspan : hspan/ceil(hspan/ideal);
 function balusters_growth_hspan(b) = let(i=balusters_growth_increment(b)) i < 0 ? balusters_hspan(b) : (2+i)*balusters_intersection_pitch(b);
 
-function balusters_new(hspan, vspan, hres=horizontal_resolution(), vres=vertical_resolution(), max_tilt_offset=max_tilt_offset(), max_gap=max_gap(), initial_seed=undef, next_seed=undef) =
+function balusters_new(hspan, vspan, skew=0, hres=horizontal_resolution(), vres=vertical_resolution(), max_tilt_offset=max_tilt_offset(), max_gap=max_gap(), initial_seed=undef, next_seed=undef) =
         let(is=initial_seed!=undef?initial_seed:floor(rands(0,1000000,1)[0]),
             ns=next_seed!=undef?next_seed:rv(1,is)[0])
-        balusters_load([hspan, vspan, hres, vres, max_tilt_offset, max_gap, is, 0, ns, []]);
+        balusters_load([hspan, vspan, skew, hres, vres, max_tilt_offset, max_gap, is, 0, ns, []]);
 
-function balusters_dump(b) = [for (i=[0:9]) b[i]];
+function balusters_dump(b) = [for (i=[0:10]) b[i]];
 
 function build_map(n, rods, k, i=0, j=0, m=[]) =
         let(r = rods[j],
@@ -130,14 +130,17 @@ function build_map(n, rods, k, i=0, j=0, m=[]) =
 
 function balusters_slots(b) = floor(balusters_hspan(b)/balusters_hres(b));
 
-function balusters_load(b, next_seed=undef, rods=undef) =
-        let(hspan = balusters_hspan(b),
+function balusters_show_terms(b,indent="") = let(terms=balusters_score_terms(b),_show=[for (i=[1:2:len(terms)-1]) _value(str(indent,terms[i-1]),terms[i])]) b;
+
+function balusters_load(b_in, next_seed=undef, rods=undef) =
+        let(b = (len(b_in) == 10 || len(b_in) == 17 ? concat([for (i=[0:1]) b_in[i]], 0, [for (i=[2:len(b_in)-1]) b_in[i]]) : b_in),
+            hspan = balusters_hspan(b),
             hres = balusters_hres(b),
             slots = balusters_slots(b), // leaves at least hres/2 for margins
             erods = rods != undef ? vquicksort(0, rods) : balusters_rods(b),
             maps = [for (i=[0,1]) build_map(slots, len(erods) == 0 ? [] : vquicksort(i, [for (j=[0:len(erods)-1]) concat(erods[j],j)]), i)],
-            b2 = concat([for (i=[0:6]) b[i]],
-                    [let(gi=balusters_growth_increment(b),mgi=balusters_max_growth_increment(b)) mgi >= 0 && gi < balusters_max_growth_increment(b) ? gi : -1,
+            b2 = concat([for (i=[0:7]) b[i]],
+                    [balusters_growth_hspan(b) >= hspan ? -1 : balusters_growth_increment(b),
                      next_seed != undef ? next_seed : balusters_next_seed(b),
                      erods],
                     maps))
@@ -157,6 +160,7 @@ function balusters_load(b, next_seed=undef, rods=undef) =
                    gaps = calc_gaps(b2, avgaps),
                    growth_hspan = balusters_growth_hspan(b2),
                    vspan = balusters_vspan(b2),
+                   skew = balusters_skew(b2),
                    vres = balusters_vres(b2),
                    max_spacing = balusters_max_spacing(b2),
                    max_tilt_offset = balusters_max_tilt_offset(b2),
@@ -175,19 +179,21 @@ function balusters_load(b, next_seed=undef, rods=undef) =
                    intersection_pitch = balusters_intersection_pitch(b2),
                    target_intersection_gap_count=growth_hspan/intersection_pitch,
                    terms=let(t=[
-                    "avoid_parallel_runs", let(prv=[for (avg=avgaps0zg) v_max([for (ag=avg) let(ab=ag[1],a=erods[ab[0]],b=erods[ab[1]],at=a[1]-a[0],bt=b[1]-b[0]) a==undef || b==undef || at != bt ? 0 : len(ag[0])/len(hgaps0)])], tups=[for (t=tuples(10,prv)) v_sum(t)], x=len(tups)==0?0:v_avg(tups), sx=squash(x/10,0.14)) [sx, x, prv],
+                    "gaps", [len(gaps)],
+                    "gap_area_ratio", len(gaps)<2 ? [0] : let(v=vquicksort(0,[for (g=gaps) [g[0]]]),x=v[0][0]/v[len(v)-1][0]) [x,x,v],
+                    "avoid_parallel_runs", let(prv=[for (avg=avgaps0zg) v_max([for (ag=avg) let(ab=ag[1],a=erods[ab[0]],b=erods[ab[1]],at=a==undef?undef:a[1]-a[0],bt=b==undef?undef:b[1]-b[0]) a==undef || b==undef || at != bt ? 0 : len(ag[0])/len(hgaps0)])], tups=[for (t=tuples(10,prv)) v_sum(t)], x=len(tups)==0?0:v_avg(tups), sx=squash(x/10,0.14)) [sx, x, prv],
                     "rod_tilt_diversity", let(offsets=2*max_tilt_offset,h=[for (b=[0:offsets-1]) b < len(rod_tilt_histogram) ? rod_tilt_histogram[b][1] : 0],x=len(erods)>0?v_std(h)/(len(erods)/offsets):0, sx=squash(x/10,0.1)) [sx, x, len(erods), offsets, h, rod_tilt_histogram],
-                    "bias", let(x=v_avg(rod_tilts[0]),sx=squash(abs(x),0.2)) [sx, x, rod_tilts[0]],
-                    "bias2", let(v=[for (tilt=rod_tilts[0]) sign(tilt)],x=v_sum(v),sx=squash(abs(x)/10,0.1)) [sx, x, v],
-                    "density", let(gap_count=len(erods)+1,x=abs(target_gap_count-gap_count)/target_gap_count,sx=squash(x,0.01,0.01)) [sx, x, gap_count, target_gap_count],
-                    "intersection_density", let(intersection_gap_count=len(intersections)+1,x=abs(target_intersection_gap_count-intersection_gap_count)/target_intersection_gap_count,sx=squash(x,0.01,0.01)) [sx, x, intersection_gap_count, target_intersection_gap_count],
-                    "std_hgaps", let(v=[for (vg=vgaps0) v_avg([for (g=[vg[0],vg[len(vg)-1]]) let(w=g[0][1]-g[0][0]) if (w<=max_spacing) w])/rod_pitch], x=v_std(v,1), sx=squash(x,0.15)) [sx, x, rod_pitch, v],
-                    "std_rail_hgaps", let(v=[for (vg=vgaps0) v_avg([for (g=vg) let(w=g[0][1]-g[0][0]) if (w<=max_spacing) w])/rod_pitch], x=v_std(v,1), sx=squash(x,0.1)) [sx, x, rod_pitch, v],
-                    "std_intersection_hgaps", let(v=[for (g=intersection_hgaps) g/intersection_pitch], x=v_std(v,1), sx=squash(x,0.3)) [sx, x, intersection_pitch, v],
+                    "bias", let(x=v_avg(rod_tilts[0]),sx=squash(abs(x),0.3)) [sx, x, rod_tilts[0]],
+                    "bias2", let(v=[for (tilt=rod_tilts[0]) sign(tilt)],x=v_sum(v),sx=squash(abs(x)/10,0.2)) [sx, x, v],
+                    "density", let(gap_count=len(erods)+1,x=abs(target_gap_count-gap_count)/target_gap_count,sx=squash(x,0.01)) [sx, x, gap_count, target_gap_count],
+                    "intersection_density", let(intersection_gap_count=len(intersections)+1,x=abs(target_intersection_gap_count-intersection_gap_count)/target_intersection_gap_count,sx=squash(x,0.01)) [sx, x, intersection_gap_count, target_intersection_gap_count],
+                    "std_hgaps", let(v=[for (vg=vgaps0) v_avg([for (g=[vg[0],vg[len(vg)-1]]) let(w=(g[0][1]-g[0][0])/cos(atan(skew/vspan))) if (w<=max_spacing) w])/rod_pitch], x=v_std(v,1), sx=squash(x,0.15)) [sx, x, rod_pitch, v],
+                    "std_rail_hgaps", let(v=[for (vg=vgaps0) v_avg([for (g=vg) let(w=(g[0][1]-g[0][0])/cos(atan(skew/vspan))) if (w<=max_spacing) w])/rod_pitch], x=v_std(v,1), sx=squash(x,0.3)) [sx, x, rod_pitch, v],
+                    "std_intersection_hgaps", let(v=[for (g=intersection_hgaps) g/intersection_pitch], x=v_std(v,1), sx=squash(x,0.4)) [sx, x, intersection_pitch, v],
                     "std_intersection_heights", let(v=[for (i=intersections) i[1]-vspan/2],x=abs(v_sum(v)/vspan),sx=squash(x,0.5)) [sx, x, v, intersections],
                     "intersection_valign_count", [intersection_valign_count],
                     "intersection_vtrend_count", [intersection_vtrend_count],
-                    "rod_tilt_trends", let(v=[for (v=rod_tilt_trends) for (t=v) len(t)],x=v_std(v,1.2),sx=squash(x,0.4)) [sx, x, v_avg(v), v, rod_tilt_trends],
+                    "rod_tilt_trends", let(v=[for (v=rod_tilt_trends) for (t=v) len(t)],x=v_std(v,1.2),sx=squash(x,0.5)) [sx, x, v_avg(v), v, rod_tilt_trends],
                     "ignored", [0]]) [for (i=[0:len(t)-3]) t[i]],
                    score=v_sum([for (i=[1:2:len(terms)-1]) terms[i][0]]))
                [gaps,
@@ -216,7 +222,7 @@ function balusters_check_rod(b, rod) =
         tests[0] && tests[1];
 
 function balusters_grow(b) =
-        balusters_load([for (i=[0:9]) i != 7 ? b[i] : (b[i] < 0 ? b[i] : b[i]+1)]);
+        balusters_load([for (i=[0:10]) i != 8 ? b[i] : (b[i] < 0 ? b[i] : b[i]+1)]);
 
 function balusters_add(b, next_seed, rod) =
         balusters_load(b, next_seed=next_seed, rods=concat(balusters_rods(b), [rod]));
@@ -231,6 +237,7 @@ function balusters_remove_all(b, next_seed_rod_v, i=0) = // TODO: make this a jo
 // Vector of crossings at each level dictated by vres, as vectors of [x, y, rod_index] in ascending order of x position.
 function calc_crossings(b, rods, diameter=baluster_diameter(), i=0, result=[]) =
         let(vspan = balusters_vspan(b),
+            skew = balusters_skew(b),
             vres = balusters_vres(b),
             n = round(vspan/vres),
             evres = vspan/n)
@@ -241,9 +248,9 @@ function calc_crossings(b, rods, diameter=baluster_diameter(), i=0, result=[]) =
                        [let(margin = balusters_margin(b),
                             hres = balusters_hres(b),
                             y = i*evres)
-                        concat([[-diameter/2, y, -1]],
-                               len(rods) == 0 ? [] : vquicksort(0, [for (ri=[0:len(rods)-1]) let(r=rods[ri]) [margin + hres*r[0] + hres*(r[1]-r[0])*y/vspan, y, ri]]),
-                               [[balusters_growth_hspan(b)+diameter/2, y, len(rods)]])]));
+                        concat([[skew*y/vspan-diameter/2, y, -1]],
+                               len(rods) == 0 ? [] : vquicksort(0, [for (ri=[0:len(rods)-1]) let(r=rods[ri]) [margin + hres*r[0] + (skew+hres*(r[1]-r[0]))*y/vspan, y, ri]]),
+                               [[balusters_growth_hspan(b)+skew*y/vspan+diameter/2, y, len(rods)]])]));
 
 // Gaps in a set of balusters, as a vector of horizontal rows of [[min_x, max_x, y], [min_rod_index, max_rod_index]]
 function calc_hgaps(crossings, diameter=baluster_diameter()) =
@@ -273,7 +280,7 @@ function aggregate_vgaps(v, min_gap=0, i=0, result=[]) =
 
 // Gaps in a set of balusters, as a vector of vertical columns of [[[min_x, max_x, min_y], ... [min_x, max_x, max_y]], [min_rod_index, max_rod_index]]
 function calc_aggregate_vgaps(b, vgaps, diameter=baluster_diameter(), min_gap=undef) =
-        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b),
+        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b)/cos(atan(balusters_skew(b)/balusters_vspan(b))),
             vres = balusters_vres(b))
         [for (vg=vgaps)
                 [for (ag=aggregate_vgaps(vg, min_gap=emin_gap)) let(yg=ag[0][len(ag[0])-1][2]-ag[0][0][2]) if (vres*ceil(yg/vres)>=emin_gap/2) ag]];
@@ -292,7 +299,7 @@ function aggregate_gaps(v, i=0, result=[]) =
 
 // Gaps in a set of balusters, as a vector of vertical columns of [[min_x, max_x, min_y], ... [min_x, max_x, max_y]], separated by intersections
 function calc_aggregate_gaps(b, avgaps, diameter=baluster_diameter(), min_gap=undef) =
-        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b),
+        let(emin_gap = min_gap!=undef?min_gap:balusters_max_gap(b)/cos(atan(balusters_skew(b)/balusters_vspan(b))),
             vres = balusters_vres(b))
         [for (avg=avgaps)
                 [for (ag=aggregate_gaps(avg)) let(yg=ag[len(ag[0])-1][2]-ag[0][2]) if (vres*ceil(yg/vres)>=emin_gap/2) ag]];
@@ -304,23 +311,26 @@ function calc_gaps(b, avgaps) =
                 for (ag=avg) concat([v_sum([for (g=ag[0]) (g[1]-g[0])*vres])], ag)];
 
 function fill_gap(b, gaps, removed_rod=undef) =
-        let(_f=_func("fill_gap",["b",balusters_dump(b)]),
+        let(//_f=_func("fill_gap",["gaps",gaps,"b",balusters_dump(b)]),
 //            gap = gaps[0], // smallest gap
             gap = gaps[len(gaps)-1], // largest gap
             rv = rv(5,balusters_next_seed(b)),
             hres = balusters_hres(b),
             vspan = balusters_vspan(b),
+            skew = balusters_skew(b),
             bot = gap[1][0],
             top = gap[1][len(gap[1])-1],
             gap_min_x = (bot[0]+top[0])/2,
             gap_max_x = (bot[1]+top[1])/2,
-            gap_x = (gap_min_x+gap_max_x)/2,
+            gap_middle_x = (gap_min_x+gap_max_x)/2,
+            rod_pitch = balusters_rod_pitch(b),
+            gap_x = (gap_middle_x-gap_min_x)<rod_pitch ? gap_middle_x : gap_min_x+rod_pitch,
             gap_y = (bot[2]+top[2])/2,
             margin = balusters_margin(b),
             max_tilt_offset = balusters_max_tilt_offset(b),
-            tilt_offset_slopes = [for (to=[-max_tilt_offset:max_tilt_offset]) if (to!=0) [to, to*hres/vspan]],
+            tilt_offset_slopes = [for (to=[-max_tilt_offset:max_tilt_offset]) if (to!=0) [to, (skew+to*hres)/vspan]],
             tilt_offset_bottom_intercepts = [for (tos=tilt_offset_slopes) [tos[0], gap_x-gap_y*tos[1]]],
-            candidate_rods = [for (tobi=tilt_offset_bottom_intercepts) let(bottom_slot=round((tobi[1]-margin)/hres)) [bottom_slot, bottom_slot+tobi[0]]],
+            candidate_rods = [for (tobi=tilt_offset_bottom_intercepts) let(bottom_slot=round((tobi[1]-margin)/hres)) for (o=[-2:2]) [bottom_slot+o, bottom_slot+tobi[0]+o]],
             valid_rods = [for (cr=candidate_rods) if (cr != removed_rod && balusters_check_rod(b, cr)) cr],
             rrv = rv(len(valid_rods),seed=rv[0]),
             candidates = len(valid_rods) == 0 ? [] : [for (i=[0:len(valid_rods)-1]) balusters_add(b, rrv[i], valid_rods[i])],
@@ -328,40 +338,50 @@ function fill_gap(b, gaps, removed_rod=undef) =
         len(scored_candidates) == 0 ? undef : randomize([for (i=[0:min(len(scored_candidates),1)]) scored_candidates[i][1]],rv[2])[0];
 
 function remove_rods(b) =
-        let(_f=_func("remove_rods",["b",balusters_dump(b)]),
+        let(//_f=_func("remove_rods",["b",balusters_dump(b)]),
             rv = rv(3,balusters_next_seed(b)),
             rods = balusters_rods(b),
             candidate_tuples = (
                     let(margin=balusters_margin(b),
-                        threshold=max(0, balusters_growth_hspan(b)-2.5*balusters_intersection_pitch(b)-balusters_margin(b)),
+                        threshold=max(0, balusters_growth_hspan(b)-2*balusters_intersection_pitch(b)-balusters_margin(b)),
                         min_slot=ceil(threshold/balusters_hres(b)))
-                    tuples(3,[for (r=rods) if (r[0]>=min_slot || r[1]>=min_slot) r])),
-            rrv = rv(len(candidate_tuples),seed=rv[0]),
-            candidates = [
-                    for (i=[0:len(candidate_tuples)-1])
-                        let(t = candidate_tuples[i],
-                            rrv2 = rv(len(t),seed=rrv[i]),
-                            c = fill_gaps(balusters_remove_all(b, [for (i=[0:len(t)]) [rrv2[i], t[i]]]), fill_only=true))
-                                [balusters_score(c), c]])
-        vquicksort(0, candidates)[0][1];
+                    tuples(4,[for (r=rods) if (r[0]>=min_slot || r[1]>=min_slot) r])))
+        len(candidate_tuples) == 0 ? undef : (
+                let(rrv = rv(len(candidate_tuples),seed=rv[0]),
+                    candidates = [
+                            for (i=[0:len(candidate_tuples)-1])
+                                let(t = candidate_tuples[i],
+                                    rrv2 = rv(len(t),seed=rrv[i]),
+                                    c = fill_gaps(balusters_remove_all(b, [for (i=[0:len(t)]) [rrv2[i], t[i]]]), fill_only=true))
+                                        [balusters_score(c), c]])
+                vquicksort(0, candidates)[0][1]);
 
 function fill_gaps(b,fill_only=false) =
         let(_f=_func("fill_gaps",["b",balusters_dump(b),"fill_only",fill_only]),
-            gaps = vquicksort(0,balusters_gaps(b)),
             score = _value("score",balusters_score(b)),
+            gaps = balusters_gaps(b),
             len_gaps = _value("len(gaps)",len(gaps)),
             rods = balusters_rods(b),
             len_rods = _value("len(rods)",len(rods)),
-            fill = _value("fill",len(rods)/round(balusters_hspan(b)/balusters_rod_pitch(b)-1)),
-            b2 = len(gaps) == 0 && (fill_only || score <= 0) ? (fill_only || balusters_growth_increment(b) < 0 ? b : balusters_grow(b)) : (let(b3=fill_gap(b, gaps)) b3 != undef ? b3 : remove_rods(b)))
-        b2 == b ? b : fill_gaps(b2,fill_only=fill_only);
+            fill = _value("fill",len(rods)/round(balusters_hspan(b)/balusters_rod_pitch(b)-1)))
+        len(gaps) == 0
+        ? (fill_only
+           ? _value("filled", b)
+           : (score <= 0
+              ? (balusters_growth_increment(b) < 0
+                 ? _value("final", b)
+                 : fill_gaps(balusters_grow(_echo("growing", b))))
+              : (let(b2 = remove_rods(balusters_show_terms(_echo("removing to improve score", b), indent="    ")))
+                 b2 != undef ? fill_gaps(b2) : _value("no valid removals", b))))
+        : fill_gaps(let(filled=fill_gap(_echo("filling", b), vquicksort(0,gaps)))
+                    filled != undef ? filled : remove_rods(_echo("removing to aid gap filling", b)), fill_only=fill_only);
 
 module balusters_report(b) {
     hres = balusters_hres(b);
     margin = balusters_margin(b);
     hspan = balusters_hspan(b);
     vspan = balusters_vspan(b);
-    max_gap = balusters_max_gap(b);
+    max_gap = balusters_max_gap(b)/cos(atan(balusters_skew(b)/balusters_vspan(b)));
     max_spacing = balusters_max_spacing(b);
     rods = balusters_rods(b);
 
@@ -414,18 +434,21 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
     hres = balusters_hres(b);
     margin = balusters_margin(b);
     vspan = balusters_vspan(b);
-    max_gap = balusters_max_gap(b);
+    max_gap = balusters_max_gap(b)/cos(atan(balusters_skew(b)/balusters_vspan(b)));
     max_spacing = balusters_max_spacing(b);
     rods = balusters_rods(b);
+
+    skew = balusters_skew(b);
+    tilt = atan(skew/vspan);
 
     // balusters
     translate([margin, 0, 0]) {
         for (r=rods) {
             translate([r[0]*hres, 0, 0]) {
-                a = atan((r[1]-r[0])*hres/vspan);
+                a = atan(((r[1]-r[0])*hres+skew)/vspan);
                 rotate([0, a, 0]) {
                     socket_depth = baluster_socket_depth()/cos(a);
-                    translate([0, sign(a)*(baluster_diameter()+extra_tilt_spacing)/2, -socket_depth]) {
+                    translate([0, sign(a-tilt)*(baluster_diameter()+extra_tilt_spacing)/2, -socket_depth]) {
                         color([0.4,0.4,0.4]) {
                             if (cubes) {
                                 translate([-baluster_diameter()/2,-baluster_diameter()/2,0]) {
@@ -458,7 +481,7 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
             }
         }
 
-        gaps = vquicksort(0, [for (avg=avgaps) for (ag=avg) let( sg=vquicksort(0, [for (g=ag[0]) if ((max_gap/2) <= g[2] && g[2] <= (vspan-max_gap/2)) [g[1]-g[0], (g[0]+g[1])/2, g[2]]]))
+        gaps = vquicksort(0, [for (avg=avgaps) for (ag=avg) let( sg=vquicksort(0, [for (g=ag[0]) if ((inches(4)/2) <= g[2] && g[2] <= (vspan-inches(4)/2)) [g[1]-g[0], (g[0]+g[1])/2, g[2]]]))
                                                                     sg[len(sg)-1]]);
         if (len(gaps) > 0) {
             for (g=[for (i=[max(0,len(gaps)-5):len(gaps)-1]) gaps[i]]) {
@@ -472,39 +495,48 @@ module balusters(b,socket_depth=baluster_socket_depth(),cubes=false,show_gaps=fa
     }
 }
 
-module railing(b,show_gaps=false,left_post=true,right_post=true,alpha=0.8) {
+module railing(b,show_gaps=false,left_post=true,right_post=true,alpha=0.8,top_rail_width=top_rail_width(),bottom_rail_width=bottom_rail_width()) {
     hres = balusters_hres(b);
     margin = balusters_margin(b);
     hspan = balusters_hspan(b);
     vspan = balusters_vspan(b);
-    max_gap = balusters_max_gap(b);
+    max_gap = balusters_max_gap(b)/cos(atan(balusters_skew(b)/balusters_vspan(b)));
     max_spacing = balusters_max_spacing(b);
     rods = balusters_rods(b);
 
-    translate([0, 0, bottom_rail_height()]) {
-        balusters(b,show_gaps=show_gaps);
-    }
+    skew = balusters_skew(b);
+    tilt = atan(skew/vspan);
+    echo(tilt=tilt);
+    echo(sv=skew/vspan);
+    echo(sl=(9+3/8)/12);
+    rotate([0,-tilt,0]) {
+        translate([bottom_rail_height()*tan(tilt),0,0]) {
+            translate([0, 0, bottom_rail_height()]) {
+                balusters(b,show_gaps=show_gaps);
+            }
 
-    // top rail
-    translate([0, -top_rail_width()/2, bottom_rail_height()+vspan]) {
-        color(walnut(),alpha) cube([hspan,top_rail_width(),top_rail_height()]);
-    }
+            // top rail
+            translate([skew, -top_rail_width/2, bottom_rail_height()+vspan]) {
+                color(lightwalnut(),alpha) rotate([90,0,0]) translate([0,0,-top_rail_width]) linear_extrude(top_rail_width) polygon([[0,0],[hspan,0],[hspan+top_rail_height()*tan(tilt),top_rail_height()],[top_rail_height()*tan(tilt),top_rail_height()]]);
+            }
 
-    // bottom rail
-    translate([0,-bottom_rail_width()/2,0]) {
-        color(walnut(),alpha) cube([hspan,bottom_rail_width(),bottom_rail_height()]);
+            // bottom rail
+            translate([0,-bottom_rail_width/2,0]) {
+                color(lightwalnut(),alpha) rotate([90,0,0]) translate([0,0,-bottom_rail_width]) linear_extrude(bottom_rail_width) polygon([[-bottom_rail_height()*tan(tilt),0],[hspan-bottom_rail_height()*tan(tilt),0],[hspan,bottom_rail_height()],[0,bottom_rail_height()]]);
+            }
+        }
     }
 
     if (left_post) {
         // left post
-        translate([-post_width(),-post_width()/2,-inches(3)]) {
+        translate([-post_width(),-post_width()/2,-railing_bottom_gap()]) {
             color(walnut(),alpha) cube([post_width(),post_width(),post_height()]);
         }
     }
 
     if (right_post) {
         // right post
-        translate([hspan,-post_width()/2,-inches(3)]) {
+        translate([hspan*cos(tilt),-post_width()/2,hspan*sin(tilt)-railing_bottom_gap()]) {
             color(walnut(),alpha) cube([post_width(),post_width(),post_height()]);
         }
     }
@@ -562,6 +594,7 @@ module instructions(b) {
 
         hspan=balusters_hspan(b);
         vspan=balusters_vspan(b);
+        skew=balusters_skew(b);
         hres=balusters_hres(b);
         margin=balusters_margin(b);
         maps=balusters_maps(b);
@@ -616,14 +649,14 @@ module instructions(b) {
         }
         color("black") {
             projection(cut=true) {
-                translate([0,bottom_rail_width()/2+hres*10+vspan,0]) {
+                translate([skew,bottom_rail_width()/2+hres*10+vspan,0]) {
                     rotate([180,0,0]) {
                         difference() {
                             // top rail
                             translate([0,-top_rail_width()/2,-inches(1)]) {
                                 cube([hspan,top_rail_width(),inches(2)]);
                             }
-                            translate([0,0,-vspan]) {
+                            translate([-skew,0,-vspan]) {
                                 balusters(b,extra_tilt_spacing=hres-baluster_diameter());
                             }
 
@@ -648,23 +681,30 @@ module instructions(b) {
         font_size=hres*0.7;
         color("black") {
             socket_depth=baluster_socket_depth();
-            for (o=[1:balusters_max_tilt_offset(b)]) {
+            for (o=(skew==0?[1:balusters_max_tilt_offset(b)]:[for (o=[-balusters_max_tilt_offset(b):balusters_max_tilt_offset(b)]) if (o!=0) o])) {
                 translate([-1*hres-hres*(balusters_max_tilt_offset(b)-o),bottom_rail_width()/2+4*hres+vspan/2,0]) {
                     rotate([0,0,90]) {
-                        rod_length=let(x=hres*o,y=vspan+2*socket_depth) norm([x,y]);
-                        rod_count=len([for (r=rods) if (abs(r[1]-r[0])==o) r]);
+                        rod_length=let(x=skew+hres*o,y=vspan+2*socket_depth) norm([x,y]);
+                        rod_count=len([for (r=rods) let(d=r[1]-r[0]) if ((skew==0?abs(d):d)==o) r]);
                         text(str(rod_count, " rod(s) of length ", fmt_frac(rod_length), "\" for tilt offset ", o, " (", round(balusters_tilt(b, o)), "°)"),size=font_size,font="Times Roman",halign="center",valign="center");
                     }
                 }
-                translate([hspan+1*hres,bottom_rail_width()/2+4*hres+vspan/2,0]) {
+                translate([skew+hspan+1*hres,bottom_rail_width()/2+4*hres+vspan/2,0]) {
                     rotate([0,0,90]) {
-                        text(str("total length: ", fmt_frac(hspan), "\""),size=font_size,font="Times Roman",halign="center",valign="center");
+                        text(str("rail length: ", fmt_frac(hspan), "\"; spread: ", fmt_frac(vspan), "\""),size=font_size,font="Times Roman",halign="center",valign="center");
                     }
                 }
             }
             translate([margin,0,0]) {
                 for (i=[0,1]) {
-                    translate([0,bottom_rail_width()/2+hres*2+i*(hres*5+vspan),0]) {
+                    translate([i==1?skew:0,bottom_rail_width()/2+hres*2+i*(hres*5+vspan),0]) {
+                        if (i==1 && skew!=0) {
+                            translate([-skew/2-3*hres,bottom_rail_width()/2,0]) {
+                                rotate([0,0,90]) {
+                                    text(str("skew: ", fmt_frac(skew), "\""),size=font_size,font="Times Roman",halign="center",valign="center");
+                                }
+                            }
+                        }
 
                         translate([hres*-2,-hres/2,0]) {
                             rotate([0,0,90]) {
@@ -689,8 +729,8 @@ module instructions(b) {
                         m=maps[i];
                         for (j=[0:len(m)-1]) {
                             k = m[j];
-                            r=rods[k];
-                            tilt=r[abs(i-1)]-r[i];
+                            r = rods[k];
+                            tilt = r == undef ? undef : r[abs(i-1)]-r[i];
                             o = k==undef ? "- " : str(tilt>0?"+":"",tilt);
                             translate([hres*j,0,0]) {
                                 rotate([0,0,90]) {
@@ -714,7 +754,7 @@ module instructions(b) {
     }
 }
 
-function fmt_frac(x,res=16) = let(u=floor(x),f=round((x-u)*res)) f==0 ? str(u) : let(s=simplify_frac(f,res)) str(u!=0?str(u," "):"",s[0],"/",s[1]);
+function fmt_frac(x,res=16) = let(u=floor(x),f=round((x-u)*res)) f==0 ? str(u) : (f==res ? str(u+1) : let(s=simplify_frac(f,res)) str(u!=0?str(u," "):"",s[0],"/",s[1]));
 function simplify_frac(n,d) = let(gcd=gcd(n,d)) [n/gcd,d/gcd];
 
 function gcd(a,b)=
@@ -724,6 +764,8 @@ function gcd(a,b)=
 
 
 initial_seed=undef;
+//function horizontal_resolution() = inches(3/8);
+//inches(3/4) * (railing_height()-railing_bottom_gap()-bottom_rail_height()-top_rail_height()) / inches(38-3-3.5);
 function horizontal_resolution() = inches(3/4);
 
 // stairwell:
@@ -738,11 +780,16 @@ function horizontal_resolution() = inches(3/4);
 //horizontal_span=inches(76+1/2); // 4x
 //horizontal_span=inches(59+1/4);
 //horizontal_span=inches(59+1/2);
+//horizontal_span=inches(67);
+//horizontal_span=inches(97.25);
+//horizontal_span=inches(15.5);
+//horizontal_span=inches(36.75);
+horizontal_span=inches(38.5);
 
 // master deck:
 //horizontal_span=inches(11+7/8);
 //horizontal_span=inches(55+1/4);
-horizontal_span=inches(54+5/8);
+//horizontal_span=inches(54+5/8);
 //horizontal_span=inches(59+7/8); // 2x
 
 railings=[for (b=[
@@ -750,7 +797,7 @@ railings=[for (b=[
 //// Stairwell
 
 // railing-92_75
-[92.75, 31.5, 0.75, 0.75, 3, 3.375, 760766, -1, 0.0499195, [[2, 1], [4, 6], [7, 10], [12, 9], [15, 14], [19, 17], [21, 20], [25, 23], [26, 27], [30, 28], [32, 34], [35, 32], [39, 37], [41, 42], [44, 47], [48, 45], [50, 51], [52, 54], [55, 57], [58, 55], [61, 58], [62, 63], [66, 64], [68, 71], [69, 66], [72, 74], [77, 76], [79, 82], [80, 79], [82, 85], [87, 88], [90, 92], [93, 91], [95, 97], [99, 100], [102, 105], [106, 109], [109, 107], [112, 111], [114, 115], [119, 116], [121, 120]]],
+//[92.75, 31.5, 0.75, 0.75, 3, 3.375, 760766, -1, 0.0499195, [[2, 1], [4, 6], [7, 10], [12, 9], [15, 14], [19, 17], [21, 20], [25, 23], [26, 27], [30, 28], [32, 34], [35, 32], [39, 37], [41, 42], [44, 47], [48, 45], [50, 51], [52, 54], [55, 57], [58, 55], [61, 58], [62, 63], [66, 64], [68, 71], [69, 66], [72, 74], [77, 76], [79, 82], [80, 79], [82, 85], [87, 88], [90, 92], [93, 91], [95, 97], [99, 100], [102, 105], [106, 109], [109, 107], [112, 111], [114, 115], [119, 116], [121, 120]]],
 
 // railing-99
 //[99, 31.5, 0.75, 0.75, 3, 3.375, 96679, -1, 0.442657, [[3, 1], [4, 7], [6, 4], [8, 10], [12, 11], [14, 15], [19, 16], [20, 23], [21, 19], [23, 26], [28, 29], [31, 34], [34, 31], [36, 37], [39, 41], [44, 42], [45, 47], [49, 52], [50, 48], [53, 54], [56, 58], [60, 62], [65, 64], [67, 70], [71, 68], [72, 74], [76, 75], [80, 77], [82, 81], [84, 86], [88, 85], [89, 88], [90, 92], [94, 95], [97, 100], [101, 104], [105, 102], [108, 105], [111, 110], [116, 114], [118, 121], [119, 117], [124, 122], [125, 126], [130, 128]]],
@@ -788,6 +835,24 @@ railings=[for (b=[
 // railing-59_5
 //[59.5, 31.5, 0.75, 0.75, 3, 3.375, 992343, -1, 0.250638, [[1, 2], [3, 6], [7, 9], [9, 12], [14, 11], [17, 14], [18, 19], [22, 20], [23, 24], [27, 26], [28, 30], [31, 34], [34, 31], [37, 35], [40, 39], [43, 41], [45, 44], [48, 51], [50, 47], [52, 54], [54, 57], [59, 58], [61, 62], [65, 64], [66, 68], [68, 71], [72, 69], [75, 73], [77, 76]]],
 
+// railing-67 -- replacement to connect with shed stairs
+//[67, 31.5, 0, 0.75, 0.75, 3, 3.375, 557733, -1, 0.667173, [[2, 3], [5, 6], [9, 11], [12, 10], [16, 15], [19, 17], [20, 22], [24, 27], [25, 23], [29, 28], [34, 31], [36, 35], [37, 40], [41, 42], [44, 47], [47, 44], [50, 49], [51, 53], [55, 54], [59, 61], [60, 57], [62, 63], [66, 65], [67, 69], [69, 72], [73, 74], [76, 78], [80, 77], [84, 81], [86, 85]]]
+
+//// Shed deck
+
+// railing-97_25
+//[97.25, 31.5, 0, 0.75, 0.75, 3, 3.375, 46771, -1, 0.493426, [[2, 3], [6, 4], [9, 10], [10, 7], [13, 14], [17, 16], [20, 18], [21, 23], [24, 22], [25, 28], [28, 30], [31, 34], [36, 35], [38, 39], [41, 44], [45, 42], [49, 46], [51, 50], [55, 57], [56, 54], [60, 62], [64, 63], [66, 67], [70, 69], [73, 71], [75, 74], [79, 82], [80, 77], [82, 85], [86, 88], [90, 93], [95, 92], [97, 96], [101, 98], [102, 103], [106, 109], [107, 104], [110, 111], [112, 114], [115, 116], [117, 120], [122, 119], [126, 124]]]
+
+// railing-15_5
+//[15.5, 31.5, 0, 0.75, 0.75, 3, 3.375, 913802, -1, 0.601005, [[2, 3], [6, 5], [7, 8], [11, 9], [12, 13], [17, 16]]],
+
+// railing-36_75 - stair gate: 40.75 - 2*(.5/*gap*/ + 1.5/*frame*/))
+//[36.75, 31.5, 0, 0.75, 0.75, 3, 3.375, 47459, -1, 0.488831, [[2, 3], [4, 6], [8, 7], [11, 12], [14, 17], [15, 13], [18, 19], [21, 23], [25, 24], [27, 29], [30, 28], [31, 34], [35, 32], [38, 36], [42, 39], [46, 44]]]
+
+// railing-38_5 - end gate: 42.5 - 2*(.5/*gap*/ + 1.5/*frame*/))
+//[38.5, 31.5, 0, 0.75, 0.75, 3, 3.375, 360151, -1, 0.429924, [[2, 3], [6, 4], [9, 6], [10, 13], [11, 10], [16, 14], [18, 17], [19, 22], [23, 21], [24, 26], [26, 29], [30, 31], [33, 35], [38, 36], [42, 43], [43, 40], [47, 46]]]
+
+
 
 //// Master deck
 
@@ -806,6 +871,21 @@ railings=[for (b=[
 // railing-59_75-2
 //[59.75, 31.5, 0.75, 0.75, 3, 3.375, 488015, -1, 0.765113, [[2, 0], [4, 5], [9, 7], [12, 11], [15, 18], [16, 13], [19, 21], [24, 23], [25, 27], [29, 30], [31, 34], [34, 37], [38, 36], [42, 39], [45, 44], [46, 47], [50, 48], [53, 56], [54, 51], [57, 59], [60, 61], [62, 64], [64, 67], [68, 66], [71, 69], [75, 74], [76, 77]]],
 
+// lower flight stair railing
+//[93, 25.5, 19.9219, 1, 0.75, 3, 3.375, 374335, -1, 0.311672, [[1, 2], [4, 3], [6, 7], [7, 9], [10, 11], [13, 16], [14, 12], [18, 17], [21, 18], [23, 21], [26, 23], [28, 30], [30, 27], [32, 33], [36, 35], [37, 38], [38, 41], [41, 43], [44, 47], [46, 45], [50, 49], [52, 53], [57, 54], [59, 58], [62, 60], [63, 65], [65, 66], [69, 68], [70, 71], [73, 75], [75, 72], [79, 78], [80, 81], [84, 83], [85, 87], [90, 88]]],
+//[93, 25.5, 19.9219, 1, 0.75, 3, 3.375, 412356, -1, 0.659253, [[1, 2], [5, 4], [6, 7], [10, 9], [12, 15], [13, 11], [16, 17], [19, 18], [20, 21], [24, 22], [27, 24], [28, 26], [29, 32], [31, 28], [32, 33], [34, 36], [39, 37], [40, 42], [43, 40], [47, 45], [48, 49], [52, 51], [53, 56], [55, 58], [58, 59], [62, 64], [64, 62], [67, 66], [68, 69], [71, 70], [73, 74], [77, 76], [79, 80], [82, 81], [83, 84], [86, 85], [88, 89]]],
+//[93, 25.5, 19.9219, 1, 1, 3, 3.375, 17103, -1, 0.964674, [[1, 2], [4, 3], [5, 6], [8, 7], [9, 10], [13, 15], [14, 12], [17, 16], [19, 20], [22, 21], [23, 24], [25, 28], [28, 25], [32, 30], [34, 35], [38, 37], [40, 41], [44, 46], [45, 43], [48, 47], [50, 51], [53, 52], [55, 57], [58, 61], [61, 59], [63, 62], [66, 64], [68, 69], [71, 70], [73, 75], [76, 77], [81, 79], [83, 84], [87, 86], [89, 91]]],
+
+// upper flight stair railing
+//[64, 25.5, 19.9219, 1, 0.75, 3, 3.375, 717574, -1, 0.294285, [[2, 1], [3, 4], [6, 5], [7, 8], [12, 9], [15, 18], [16, 13], [19, 20], [23, 22], [25, 26], [28, 27], [30, 33], [32, 29], [33, 35], [35, 36], [37, 39], [41, 40], [42, 43], [44, 46], [47, 44], [51, 48], [53, 52], [54, 55], [57, 56], [61, 59]]],
+//[64, 25.5, 19.9219, 1, 0.75, 3, 3.375, 70476, -1, 0.932916, [[2, 1], [3, 4], [6, 5], [9, 6], [11, 9], [13, 15], [14, 11], [17, 18], [18, 21], [21, 23], [23, 26], [27, 28], [31, 34], [33, 30], [36, 35], [39, 36], [41, 39], [43, 40], [44, 43], [45, 48], [48, 46], [49, 51], [50, 53], [54, 55], [56, 58], [60, 59]]],
+
+// deck stair railing
+//[41, 27.8314, 15.7308, 0.75, 0.75, 3, 3.375, 340592, -1, 0.534562, [[3, 2], [4, 6], [8, 7], [10, 12], [15, 17], [16, 13], [20, 22], [24, 25], [28, 26], [30, 29], [32, 35], [34, 31], [38, 37], [41, 42], [44, 43], [46, 48], [49, 50]]],
+
+// deck landing landing
+//[34.75, 30.25, 0, 0.75, 0.75, 3, 3.375, 806418, -1, 0.818579, [[3, 2], [4, 6], [7, 8], [9, 11], [14, 15], [17, 14], [20, 19], [22, 23], [27, 26], [30, 28], [32, 31], [36, 38], [37, 35], [41, 42]]],
+
 []]) if (len(b)>0) b];
 
 module railings(railings, i=0, o=0) {
@@ -818,10 +898,22 @@ module railings(railings, i=0, o=0) {
     }
 }
 
-if (false) {
+if (true) {
+//x=fill_gaps(b=balusters_load([50, 24, 14.7755, 1, 1, 3, 3.375, 976304, 0, 0.703889, [[16, 15], [17, 16]]]), fill_only=true);
+//} else {
 if (len(railings) == 0) {
 
+//    ihspan=inches(34.75);
+//    slope=0;
+//    slope=(9+3/8)/12;
+//    slope=6.5/11.5;
+//    ivspan=(inches(38)/sqrt(1+slope*slope))-inches(2/*nose to top of stringer*/)-inches(2/*top rail base*/)-inches(1.25/*top rail cap*/);
+//    ivspan=inches(38)-inches(3.5/*deck to bottom rail*/)-inches(1.5/*bottom rail*/)-inches(1.5/*top rail base*/)-inches(1.25/*top rail cap*/);
+//    iskew=slope*ivspan;
+//    ihres=round((3/4)*4*sqrt(1+slope*slope))/4;
+//    railing=fill_gaps(balusters_new(hspan=ihspan,vspan=ivspan,skew=iskew,hres=ihres,initial_seed=initial_seed));
     railing=fill_gaps(balusters_new(horizontal_span,vertical_span(),initial_seed=initial_seed));
+    balusters_report(railing);
     echo(str(balusters_dump(railing)));
 
 } else if (len(railings) == 1) {
@@ -832,11 +924,11 @@ if (len(railings) == 0) {
 
 //    instructions(railing);
 
-//    rotate([0,0,-90]) {
-//        translate([0, -feet(2), inches(12)]) {
+    rotate([0,0,-90]) {
+        translate([0, -feet(2), inches(12)]) {
             railing(railing, show_gaps=false);
-//        }
-//    }
+        }
+    }
 
 } else {
     railings(railings);

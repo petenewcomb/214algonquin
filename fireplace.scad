@@ -16,11 +16,11 @@ function fireplace_wall_window_offset_drywall_to_frame() = inches(3.5);
 function fireplace_wall_window_width() = inches(41);
 function window_trim_extension_from_frame() = inches(3.5-0.75);
 function lower_subfloor_height() = 0;
-function upper_subfloor_height() = lower_subfloor_height() + inches(121.5);
+function upper_subfloor_height() = lower_subfloor_height() + lower_ceiling_height() + floor_thickness();
 function fireplace_wall_width() = fireplace_wall_total_width() - fireplace_wall_window_offset_drywall_to_frame() - fireplace_wall_window_width() - window_trim_extension_from_frame();
 
 function upper_ceiling_high_point() = inches(210);
-function lower_ceiling_height() = inches(107);
+function lower_ceiling_height() = inches(108);
 function fireplace_wall_high_window_top() = inches(191.75);
 
 function listening_center_from_long_wall() = inches(104.5);
@@ -248,7 +248,7 @@ module walls() {
     union() {
         rotate([0, 0, 90]) {
             translate([-(window_wall_length()-exterior_wall_thickness()), 0, 0]) {
-                window_wall();
+                *window_wall();
             }
         }
         translate([-exterior_wall_thickness(), 0, 0]) {
@@ -355,8 +355,18 @@ stairs 40.5" incl stringers
                     stringer();
                     translate([inches(40.5)-inches(2),0,0]) {
                         stringer();
-                        translate([inches(0.5),0,0]) {
-                            color(walnut()) cube([inches(8),inches(8),inches(38)]);
+                        translate([inches(0.25),0,0]) {
+                            color(walnut()) cube([inches(8),inches(8),inches(42)]);
+                        }
+                    }
+                    translate([inches(2),-inches(5.5),inches(5+5/8)]) {
+                        color("lightgray",0.3) translate([0,(inches(1.75)+inches(5+5/8))*12/(9+3/8),-inches(5+5/8)+inches(3.5)]) cube([40.5-2*inches(2),inches(3/4),inches(inches(5+5/8)-inches(3.5))]);
+                        color(lightwalnut()) cube([40.5-2*inches(2),inches(12),inches(1.75)]);
+                        for (i=[1:6]) {
+                            translate([0,-i*(inches(1.75)+inches(5+7/8))*12/(9+3/8),i*(inches(1.75)+inches(5+7/8))]) {
+                                if (i<6) color("lightgray",0.3) translate([0,(inches(1.75)+inches(5+7/8))*12/(9+3/8),-inches(5+7/8)+inches(3.5)]) cube([40.5-2*inches(2),inches(3/4),inches(inches(5+7/8)-inches(3.5))]);
+                                color(lightwalnut()) cube([40.5-2*inches(2),inches(12),inches(1.75)]);
+                            }
                         }
                     }
                 }
@@ -372,6 +382,16 @@ stairs 40.5" incl stringers
                         }
                         translate([-inches(40.5)-inches(1),inches(70.5),inches(68.75)-inches(0.001)]) {
                             cube([inches(42.5),inches(3),inches(3)]);
+                        }
+                    }
+                    translate([-inches(40.5)+inches(2),-inches(5.5),inches(5+5/8)]) {
+                        color("lightgray",0.3) translate([0,-(inches(1.75)+inches(5+7/8))*12/(9+3/8)+inches(12)-inches(3/4),-inches(5+5/8)+inches(3.5)]) cube([40.5-2*inches(2),inches(3/4),inches(inches(5+7/8)-inches(3.5))]);
+                        color(lightwalnut()) cube([40.5-2*inches(2),inches(12),inches(1.75)]);
+                        for (i=[1:7]) {
+                            translate([0,i*(inches(1.75)+inches(5+7/8))*12/(9+3/8),i*(inches(1.75)+inches(5+7/8))]) {
+                                color("lightgray",0.3) translate([0,-(inches(1.75)+inches(5+7/8))*12/(9+3/8)+inches(12)-inches(3/4),-inches(5+7/8)+inches(3.5)]) cube([40.5-2*inches(2),inches(3/4),inches(inches(5+7/8)-inches(3.5))]);
+                                color(lightwalnut()) cube([40.5-2*inches(2),inches(12),inches(1.75)]);
+                            }
                         }
                     }
                 }
@@ -479,67 +499,123 @@ stairs 40.5" incl stringers
                     }
                 }
             } else {
-                translate([0,-inches(54.25),inches(108)-inches(1.5)]) {
-                    color(lightwalnut()) cube([inches(3),inches(54.25),inches(1.5)]);
-                    color(lightwalnut()) cube([inches(5.75)-inches(0.001),inches(3),inches(1.5)]);
-                }
-                translate([inches(5.75)-inches(1.5),-inches(87.5),inches(108)-inches(1.5)]) {
-                    color(lightwalnut()) cube([inches(1.5)-inches(0.001),inches(87.5)-inches(54.25)-inches(0.001),inches(1.5)]);
-                }
-                translate([0,-inches(54.25),inches(68.75)+inches(3.5)]) {
-                    color(lightwalnut()) cube([inches(3),inches(54.25),inches(1.5)]);
-                }
-                translate([0,-inches(54.25),inches(68.75)+inches(3.5)]) {
-                    color(lightwalnut()) cube([inches(5.75),inches(3),inches(1.5)]);
-                }
-                translate([inches(1.5),-inches(54.25)+inches(1.5),0]) {
-                    color([0.4,0.4,0.4]) rod(diameter=inches(3/4),from=[0,0,inches(68.75)],to=[0,0,inches(108)]);
-                }
-                translate([inches(5.75)-inches(1.5)-inches(0.0001),-inches(54.25)+inches(3/4),inches(68.75)]) {
-                    difference() {
-                        union() {
-                            rotate([0,-atan((9+3/8)/12),-90]) {
-                                translate([-inches(1.75),0,inches(10)-inches(1.5)]) {
-                                    color(lightwalnut()) cube([inches(90),inches(1.5),inches(1.5)]);
-                                }
+                difference() {
+                    union() {
+                        translate([inches(5.75)+inches(40.5)-inches(2)/2+inches(0.02),-inches(54.25)+inches(0.75),inches(68.75)+inches(10.75)]) {
+                            rotate([0,0,-90]) {
+                                railing(balusters_load([65.75, 25.5, 19.9219, 1, 0.75, 3, 3.375, 717574, -1, 0.294285, [[2, 1], [3, 4], [6, 5], [7, 8], [12, 9], [15, 18], [16, 13], [19, 20], [23, 22], [25, 26], [28, 27], [30, 33], [32, 29], [33, 35], [35, 36], [37, 39], [41, 40], [42, 43], [44, 46], [47, 44], [51, 48], [53, 52], [54, 55], [57, 56], [61, 59], [62, 62]]]),left_post=false,right_post=false,alpha=1,top_rail_width=inches(1.5),bottom_rail_width=inches(1.5));
                             }
-                        }
-                        translate([-inches(1),-inches(3/4),inches(4)]) {
-                            color(lightwalnut()) cube([inches(5),inches(10),inches(10)]);
-                        }
-                        translate([-inches(1),-inches(3/4)-inches(87.5)+inches(54.25)-inches(3),inches(108)-inches(3)-inches(68.75)]) {
-                            color(lightwalnut()) cube([inches(5),inches(3),inches(10)]);
-                        }
-                    }
-                }
-                translate([inches(5.75)+inches(40.5)+inches(0.0001),-inches(54.25)+inches(3/4),inches(68.75)]) {
-                    difference() {
-                        union() {
-                            rotate([0,-atan((9+3/8)/12),-90]) {
-                                translate([inches(6),0,inches(10)-inches(1.5)]) {
-                                    color(lightwalnut()) cube([inches(90),inches(1.5),inches(1.5)]);
-                                }
-                            }
-                        }
-                        translate([-inches(1),-inches(0.0001),inches(10)-inches(5)]) {
-                            color(lightwalnut()) cube([inches(3.5),inches(10),inches(10)]);
-                        }
-                    }
-                    translate([-inches(1.5)/2,0,0]) {
-                        difference() {
-                            union() {
-                                rotate([0,-atan((9+3/8)/12),-90]) {
-                                    translate([inches(17),0,inches(10)+inches(24)-inches(1.5)]) {
-                                        color(lightwalnut()) cube([inches(90),inches(3),inches(1.5)]);
+                            translate([-inches(1.5)/2,0,34.265]) {
+                                rotate([-atan((9+3/8)/12),0,0]) {
+                                    translate([0,-inches(4),0]) {
+                                        color(lightwalnut()) cube([inches(1.5),inches(12),inches(1.5)]);
                                     }
                                 }
                             }
-                            translate([-inches(1),-inches(3/4),inches(10)-inches(5)]) {
-                                color(lightwalnut()) cube([inches(3.5),inches(10),inches(10)]);
+                        }
+                    }
+                    translate([inches(5.75)+inches(40.5)-inches(3),-inches(54.25)-inches(60),upper_subfloor_height()+inches(34)]) {
+                        color(lightwalnut()) cube([inches(12),inches(12),inches(12)]);
+                    }
+                }
+                translate([inches(5.75)+inches(40.5)-inches(2)/2+inches(0.02)-inches(1.5)/2,-inches(54.25)-inches(57),upper_subfloor_height()+inches(34)-inches(1.5)]) {
+                    color(lightwalnut()) cube([inches(1.5),inches(6.5),inches(1.5)]);
+                }
+                translate([inches(91)-inches(40.5)+inches(2)-inches(1/4)-inches(8),-inches(54.25)+inches(0.75)-inches(93)*cos(atan((9+3/8)/12))-inches(8),0]) {
+                    color(walnut()) cube([inches(8),inches(8),inches(42)]);
+                }
+                translate([inches(91)-inches(40.5)+inches(2)/2-inches(0.02),-inches(54.25)+inches(0.75)-inches(93)*cos(atan((9+3/8)/12)),inches(10)]) {
+                    rotate([0,0,90]) {
+                        railing(balusters_load([93, 25.5, 19.9219, 1, 1, 3, 3.375, 17103, -1, 0.964674, [[1, 2], [4, 3], [5, 6], [8, 7], [9, 10], [13, 15], [14, 12], [17, 16], [19, 20], [22, 21], [23, 24], [25, 28], [28, 25], [32, 30], [34, 35], [38, 37], [40, 41], [44, 46], [45, 43], [48, 47], [50, 51], [53, 52], [55, 57], [58, 61], [61, 59], [63, 62], [66, 64], [68, 69], [71, 70], [73, 75], [76, 77], [81, 79], [83, 84], [87, 86], [89, 91]]]),left_post=false,right_post=false,alpha=1,top_rail_width=inches(1.5),bottom_rail_width=inches(1.5));
+//                        railing(balusters_load([93, 25.5, 19.9219, 1, 1, 3, 3.375, 160542, -1, 0.596089, [[1, 2], [4, 3], [6, 4], [8, 7], [10, 12], [11, 8], [12, 15], [15, 16], [16, 19], [19, 20], [21, 23], [22, 21], [24, 25], [27, 26], [28, 29], [29, 32], [32, 30], [35, 33], [36, 35], [38, 36], [40, 39], [43, 40], [44, 43], [45, 48], [47, 44], [48, 51], [50, 52], [51, 54], [55, 53], [58, 56], [59, 58], [60, 61], [63, 62], [64, 65], [66, 68], [68, 69], [69, 71], [71, 72], [73, 75], [74, 77], [76, 78], [78, 81], [80, 79], [83, 82], [85, 83], [86, 85], [88, 86], [90, 89]]]),left_post=false,right_post=false,alpha=1,top_rail_width=inches(1.5),bottom_rail_width=inches(1.5));
+//                        railing(balusters_load([93, 25.5, 19.9219, 0.875, 0.875, 3, 3.375, 804982, -1, 0.767328, [[3, 2], [7, 4], [9, 8], [10, 12], [13, 14], [17, 19], [18, 15], [19, 21], [23, 22], [24, 25], [28, 27], [29, 32], [31, 29], [34, 33], [35, 36], [39, 37], [41, 44], [43, 40], [45, 46], [46, 49], [50, 51], [54, 52], [55, 56], [59, 57], [61, 64], [62, 60], [64, 67], [68, 65], [69, 71], [72, 73], [74, 77], [77, 78], [80, 82], [84, 81], [86, 85], [87, 88], [91, 89], [94, 91], [95, 94], [98, 97], [101, 98], [103, 101], [104, 103]]]),left_post=false,right_post=false,alpha=1,top_rail_width=inches(1.5),bottom_rail_width=inches(1.5));
+                    }
+                    translate([-inches(1.5)/2,0,34.265]) {
+                        rotate([atan((9+3/8)/12),0,0]) {
+                            translate([0,-inches(8),0]) {
+                                color(lightwalnut()) cube([inches(1.5),inches(12),inches(1.5)]);
                             }
                         }
                     }
                 }
+
+                translate([0,-inches(54.25),0]) {
+                    color(walnut()) cube([inches(6),inches(6),inches(68.75)-inches(1.5)]);
+                }
+difference() { union() {
+//translate([0,inches(10+1/16),0]) {
+//translate([0,inches(8+1/4),0]) {
+//translate([0,inches(5+1/4),0]) {
+translate([0,inches(3)-3/8,0]) {
+//translate([0,0,0]) {
+                translate([0,-inches(54.25)-inches(43.5),inches(108)-inches(1.5)]) {
+                    color(lightwalnut()) cube([inches(3),inches(43.5),inches(1.5)]);
+                }
+                translate([0,-inches(54.25),inches(68.75)+inches(3.5)]) {
+                    rotate([0,-atan((9+3/8)/12),-90]) {
+                        translate([0,0,0]) {
+                            #color(lightwalnut()) cube([inches(90),inches(3),inches(1.5)]);
+                        }
+                    }
+                }
+
+
+                translate([inches(3)/2,-inches(54.25),inches(68.75)+inches(3.5)]) {
+                    rotate([0,0,90]) {
+//                        railing(balusters_load([54.25, 32.75, 0, 0.75, 0.75, 3, 3.375, 442718, -1, 0.0825224, [[3, 2], [5, 6], [8, 7], [9, 11], [14, 12], [16, 15], [19, 21], [20, 18], [23, 24], [25, 27], [28, 31], [33, 30], [35, 33], [39, 36], [40, 41], [41, 44], [46, 45], [48, 49], [51, 48], [54, 53], [55, 58], [59, 60], [61, 63], [66, 64], [69, 68]]]),left_post=false,right_post=false,alpha=1);
+                        railing(balusters_load([54.25-3+3/8, 32.75, 0, 0.75, 0.75, 3, 3.375, 442718, -1, 0.0825224, [[3, 2], [5, 6], [8, 7], [9, 11], [14, 12], [16, 15], [19, 21], [20, 18], [23, 24], [25, 27], [28, 31], [33, 30], [35, 33], [39, 36], [40, 41], [41, 44], [46, 45], [48, 49], [51, 48], [54, 53], [55, 58], [59, 60], [61, 63], [66, 64]]]),left_post=false,right_post=false,alpha=1);
+                    }
+                }
+
+                translate([inches(3)/2,-inches(54.25)+4*inches(0.75),0]) {
+                    topslots = concat(
+                            [for (s=railing_slots(inches(43.5)+3*inches(0.75),[inches(0.75)])) [0,-(inches(0.75)-inches(0.25))-s[1],inches(108)-inches(1.5)]]);
+                    bottomslots = concat(
+                            [for (s=railing_slots(inches(43.5)+3*inches(0.75),[inches(1)*cos(atan((9+3/8)/12))])) [0,-(inches(0.75)-inches(0.25))-s[1],inches(68.75)+inches(3.5)+inches(1.5)+((inches(0.75)-inches(0.25))+s[1]-3*inches(0.75))*(9+3/8)/12]]);
+                    echo(t=len(topslots));
+                    echo(b=len(bottomslots));
+                    o=inches(3/8);
+                    mapping=[
+                            [3, 2],  // 1
+                            [5, 6],  // 2
+                            [6, 4],  // 3
+                            [9, 10], // 4
+                            [13, 12],// 5
+                            [15, 17],// 6
+                            [19, 21],// 7
+                            [22, 20],// 8
+                            [24, 25],// 9
+                            [27, 27],// 10
+                            [29, 31],// 11
+                            [31, 34],// 12
+                            [35, 36],// 13
+                            [36, 39],// 14
+                            [39, 41],// 15
+                            [43, 44],// 16
+                            [45, 48],// 17
+                            [49, 51],// 18
+ ];
+                    echo(m=len(mapping));
+                    for (i=[0:len(mapping)-1]) {
+                        color([0.4,0.4,0.4]) {
+                            echo(t=topslots[i]);
+                            echo(b=bottomslots[i]);
+                            echo(m=mapping[i]);
+                            #rod(inches(3/8), bottomslots[mapping[i][0]], topslots[mapping[i][1]], extension=inches(0.75));
+                        }
+                    }
+
+                    color([0.4,0.4,0.4]) rod(inches(3/8), [inches(3)/2,0,inches(68.75)+inches(3.5)+inches(1.5)/2], [inches(5.75),0,inches(68.75)+inches(3.5)+inches(1.5)/2], extension=inches(0.75));
+
+                    *translate([0,-inches(43.5)+inches(8),inches(108)-inches(1.5)-inches(2)]) {
+                        color("red",0.5) sphere(d=inches(4),$fn=100);
+                    }
+                }
+}
+}
+translate([-inches(1),0,inches(68.75)-inches(1)]) color("lightgray") cube([inches(3)+2*inches(1),inches(12),inches(108)-inches(68.75)+2*inches(1)]);
+}
+translate([-inches(0.001),0,0]) color("lightgray") cube([inches(1),interior_wall_thickness(),inches(108)]);
             }
         }
     }
@@ -548,7 +624,11 @@ stairs 40.5" incl stringers
 module stringer() {
     difference() {
         union() {
-            rotate([0,-atan((9+3/8)/12),-90]) {
+            rotate([0,0,-90]) rotate([0,-atan((9+3/8)/12),0]) /*multmatrix(let(x=12,y=9+3/8,v=[x,y],l=norm(v),c=x/l,s=y/l)[
+                            [ c, 0, -s, 0],
+                            [ 0, 1, 0, 0],
+                            [s, 0, c, 0],
+                            [ 0, 0, 0, 1]])*/ {
                 translate([-inches(10),0,0]) {
                     color(walnut()) cube([inches(110),inches(2),inches(10)]);
                 }
@@ -1056,13 +1136,13 @@ module lower_fireplace() {
         }
     }
 
-    #translate([bench_offset,0,0]) {
+    translate([bench_offset,0,0]) {
         subwoofer_bench();
     }
     translate([lower_fireplace_width()-bench_offset-subwoofer_bench_width(),0,0]) {
         subwoofer_bench();
     }
-    #translate([bench_offset+subwoofer_bench_width(),-subwoofer_bench_depth()+inches(0),0]) {
+    translate([bench_offset+subwoofer_bench_width(),-subwoofer_bench_depth()+inches(0),0]) {
         color(walnut()) cube([lower_fireplace_unit_width()+2*bench_offset,subwoofer_bench_depth()-inches(0),inches(10)]);
     }
 }
