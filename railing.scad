@@ -903,16 +903,19 @@ if (true) {
 //} else {
 if (len(railings) == 0) {
 
-//    ihspan=inches(34.75);
-//    slope=0;
-//    slope=(9+3/8)/12;
-//    slope=6.5/11.5;
-//    ivspan=(inches(38)/sqrt(1+slope*slope))-inches(2/*nose to top of stringer*/)-inches(2/*top rail base*/)-inches(1.25/*top rail cap*/);
-//    ivspan=inches(38)-inches(3.5/*deck to bottom rail*/)-inches(1.5/*bottom rail*/)-inches(1.5/*top rail base*/)-inches(1.25/*top rail cap*/);
-//    iskew=slope*ivspan;
-//    ihres=round((3/4)*4*sqrt(1+slope*slope))/4;
-//    railing=fill_gaps(balusters_new(hspan=ihspan,vspan=ivspan,skew=iskew,hres=ihres,initial_seed=initial_seed));
-    railing=fill_gaps(balusters_new(horizontal_span,vertical_span(),initial_seed=initial_seed));
+    ihspan=inches(71.75);  // along length of stringer
+    //slope=0;
+    //slope=(9+3/8)/12;
+    //slope=6.5/11.5;
+    slope=31/66; // or 19.25/41
+    ivspan=(inches(37/*vertical nose to rail top*/-4.25/*vertical nose to stringer top*/)/sqrt(1+slope*slope))-inches((3.5-1/8)/2/*top rail base thickness*/)-inches(1.125/*top rail cap thickness*/);
+    //ivspan=inches(38)-inches(3.5/*deck to bottom rail*/)-inches(1.5/*bottom rail*/)-inches(1.5/*top rail base*/)-inches(1.25/*top rail cap*/);
+    iskew=slope*ivspan;
+    ihres=round((3/4)*4*sqrt(1+slope*slope))/4;
+    railing=fill_gaps(balusters_new(hspan=ihspan,vspan=ivspan,skew=iskew,hres=ihres,initial_seed=initial_seed));
+
+//    railing=fill_gaps(balusters_new(horizontal_span,vertical_span(),initial_seed=initial_seed));
+
     balusters_report(railing);
     echo(str(balusters_dump(railing)));
 
